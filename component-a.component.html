@@ -1,0 +1,13 @@
+
+<div class="search-bar">
+  <input [(ngModel)]="searchText" placeholder="Search term..." />
+  <button (click)="onSearch()">Search</button>
+  <button (click)="navigate('up')">⬆️</button>
+  <button (click)="navigate('down')">⬇️</button>
+  <span *ngIf="getCount()">{{ currentIndex + 1 }} / {{ getCount() }}</span>
+  <button (click)="clear()">Clear</button>
+</div>
+
+<app-accordion-group [data]="dataA"></app-accordion-group>
+<app-component-b></app-component-b>
+<app-component-c></app-component-c>
