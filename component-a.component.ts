@@ -1,3 +1,4 @@
+// component-a.component.ts
 import { Component, OnInit } from '@angular/core';
 import { SearchService } from '../search.service';
 
@@ -8,32 +9,15 @@ import { SearchService } from '../search.service';
 })
 export class ComponentA implements OnInit {
   searchTerm = '';
-  expandedItems: boolean[] = [];
   accordionData = [
     { title: 'First Item', content: 'This is the content for the first item' },
     { title: 'Second Item', content: 'This is the second content' },
     { title: 'Third Item', content: 'Another piece of content here' }
   ];
 
-  constructor(private searchService: SearchService) {
-    this.expandedItems = new Array(this.accordionData.length).fill(false);
-  }
+  constructor(private searchService: SearchService) {}
 
-  ngOnInit() {
-    this.searchService.currentSearchTerm.subscribe(term => {
-      if (!term) {
-        this.expandedItems = new Array(this.accordionData.length).fill(false);
-      }
-    });
-
-    this.searchService.currentActiveMatchIndex.subscribe(index => {
-      const activeMatch = this.searchService.getActiveMatchPosition();
-      if (activeMatch && activeMatch.component === 'componentA') {
-        this.expandedItems = new Array(this.accordionData.length).fill(false);
-        this.expandedItems[activeMatch.itemIndex] = true;
-      }
-    });
-  }
+  ngOnInit() {}
 
   onSearch() {
     this.searchService.updateSearchTerm(this.searchTerm);
@@ -41,7 +25,7 @@ export class ComponentA implements OnInit {
 
   clearSearch() {
     this.searchTerm = '';
-    this.searchService.clearSearch();
+    this.searchService.updateSearchTerm('');
   }
 
   navigateUp() {
@@ -50,11 +34,5 @@ export class ComponentA implements OnInit {
 
   navigateDown() {
     this.searchService.navigateMatch('down');
-  }
-
-  toggleItem(index: number) {
-    if (!this.searchTerm) {
-      this.expandedItems[index] = !this.expandedItems[index];
-    }
   }
 }
