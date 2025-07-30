@@ -1,3 +1,4 @@
+// search.service.ts
 import { Injectable } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
 
@@ -14,21 +15,17 @@ export class SearchService {
   private totalMatches = new BehaviorSubject<number>(0);
   currentTotalMatches = this.totalMatches.asObservable();
 
-  private matchPositions: {component: string, itemIndex: number}[] = [];
-  
   updateSearchTerm(term: string) {
     this.searchTerm.next(term);
     this.activeMatchIndex.next(0);
-    this.matchPositions = [];
   }
 
-  registerMatch(component: string, itemIndex: number) {
-    this.matchPositions.push({component, itemIndex});
-    this.updateTotalMatches(this.matchPositions.length);
+  updateActiveMatchIndex(index: number) {
+    this.activeMatchIndex.next(index);
   }
 
-  getActiveMatchPosition() {
-    return this.matchPositions[this.activeMatchIndex.getValue()];
+  updateTotalMatches(count: number) {
+    this.totalMatches.next(count);
   }
 
   navigateMatch(direction: 'up' | 'down') {
@@ -36,18 +33,9 @@ export class SearchService {
     const total = this.totalMatches.getValue();
     
     if (direction === 'up') {
-      const newIndex = currentIndex > 0 ? currentIndex - 1 : total - 1;
-      this.activeMatchIndex.next(newIndex);
+      this.activeMatchIndex.next(currentIndex > 0 ? currentIndex - 1 : total - 1);
     } else {
-      const newIndex = currentIndex < total - 1 ? currentIndex + 1 : 0;
-      this.activeMatchIndex.next(newIndex);
+      this.activeMatchIndex.next(currentIndex < total - 1 ? currentIndex + 1 : 0);
     }
-  }
-
-  clearSearch() {
-    this.searchTerm.next('');
-    this.activeMatchIndex.next(0);
-    this.totalMatches.next(0);
-    this.matchPositions = [];
   }
 }
