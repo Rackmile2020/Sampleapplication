@@ -60,3 +60,97 @@ export class AccordionGroupComponent implements OnInit {
     this.data[i].expanded = !this.data[i].expanded;
   }
 }
+//////////////////////
+// register-match.directive.ts
+import { Directive, Input, OnInit, OnDestroy } from '@angular/core';
+import { SearchService } from './search.service';
+
+@Directive({
+  selector: '[appRegisterMatch]'
+})
+export class RegisterMatchDirective implements OnInit, OnDestroy {
+  @Input() appRegisterMatch: {component: string, itemIndex: number};
+  @Input() hasMatches: boolean;
+
+  constructor(private searchService: SearchService) {}
+
+  ngOnInit() {
+    if (this.hasMatches) {
+      this.searchService.registerMatch(this.appRegisterMatch.component, this.appRegisterMatch.itemIndex);
+    }
+  }
+
+  ngOnDestroy() {
+    // Cleanup if needed
+  }
+}
+//////////////////////
+<!-- Updated component-a.component.html with directive -->
+<div class="accordion">
+  <div class="accordion-item" *ngFor="let item of accordionData; let i = index">
+    <div class="accordion-header" 
+         (click)="toggleItem(i)"
+         [innerHTML]="item.title | highlight:searchTerm:activeMatchIndex"
+         [class.active-match]="isActiveMatch('componentA', i)"
+         [appRegisterMatch]="{component: 'componentA', itemIndex: i}"
+         [hasMatches]="searchTerm && item.title.toLowerCase().includes(searchTerm.toLowerCase())">
+    </div>
+    <div class="accordion-content" 
+         *ngIf="expandedItems[i]"
+         [innerHTML]="item.content | highlight:searchTerm:activeMatchIndex"
+         [class.active-match]="isActiveMatch('componentA', i)"
+         [appRegisterMatch]="{component: 'componentA', itemIndex: i}"
+         [hasMatches]="searchTerm && item.content.toLowerCase().includes(searchTerm.toLowerCase())">
+    </div>
+  </div>
+</div>
+
+  ////////////
+
+
+  import { Component, OnInit } from '@angular/core';
+import { SearchService } from '../search.service';
+
+@Component({
+  selector: 'app-component-b',
+  templateUrl: './component-b.component.html',
+  styleUrls: ['./component-b.component.css']
+})
+export class ComponentB implements OnInit {
+  expandedItems: boolean[] = [];
+  accordionData = [
+    { title: 'Component B Item 1', content: 'Data specific to component B' },
+    { title: 'Another B Item', content: 'More content in component B' }
+  ];
+
+  constructor(public searchService: SearchService) {
+    this.expandedItems = new Array(this.accordionData.length).fill(false);
+  }
+
+  ngOnInit() {
+    this.searchService.currentSearchTerm.subscribe(term => {
+      if (!term) {
+        this.expandedItems = new Array(this.accordionData.length).fill(false);
+      }
+    });
+
+    this.searchService.currentActiveMatchIndex.subscribe(index => {
+      const activeMatch = this.searchService.getActiveMatchPosition();
+      if (activeMatch && activeMatch.component === 'componentB') {
+        this.expandedItems = new Array(this.accordionData.length).fill(false);
+        this.expandedItems[activeMatch.itemIndex] = true;
+      }
+    });
+  }
+
+  toggleItem(index: number) {
+    if (!this.searchService.currentSearchTerm) {
+      this.expandedItems[index] = !this.expandedItems[index];
+    }
+  }
+
+  isActiveMatch(component: string, index: number): boolean {
+    const activeMatch = this.searchService.getActiveMatchPosition();
+    return activeMatch?.component === component && activeMatch?.itemIndex === index;
+  }
+}
