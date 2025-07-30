@@ -1,23 +1,26 @@
-// directives/register-match.directive.ts
-import { Directive, Input, OnInit } from '@angular/core';
-import { SearchService } from '../services/search.service';
+// register-match.directive.ts
+import { Directive, Input, OnInit, OnDestroy } from '@angular/core';
+import { SearchService } from './search.service';
 
 @Directive({
   selector: '[appRegisterMatch]'
 })
-export class RegisterMatchDirective implements OnInit {
-  @Input() appRegisterMatch: {component: string, itemIndex: number, isHeader: boolean};
-  @Input() hasMatches: boolean;
+export class RegisterMatchDirective implements OnInit, OnDestroy {
+  @Input() appRegisterMatch: {component: string, itemIndex: number};
+  @Input() hasMatches: boolean = false;
 
   constructor(private searchService: SearchService) {}
 
   ngOnInit() {
-    if (this.hasMatches) {
+    if (this.hasMatches && this.appRegisterMatch) {
       this.searchService.registerMatch(
         this.appRegisterMatch.component,
-        this.appRegisterMatch.itemIndex,
-        this.appRegisterMatch.isHeader
+        this.appRegisterMatch.itemIndex
       );
     }
+  }
+
+  ngOnDestroy() {
+    // Cleanup if needed
   }
 }
