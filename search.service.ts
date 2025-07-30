@@ -1,4 +1,4 @@
-// search.service.ts
+// services/search.service.ts
 import { Injectable } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
 
@@ -15,18 +15,18 @@ export class SearchService {
   private totalMatches = new BehaviorSubject<number>(0);
   currentTotalMatches = this.totalMatches.asObservable();
 
-  private matchPositions: {component: string, itemIndex: number}[] = [];
+  private matchPositions: {component: string, itemIndex: number, isHeader: boolean}[] = [];
   
   updateSearchTerm(term: string) {
     this.searchTerm.next(term);
     this.activeMatchIndex.next(0);
     this.matchPositions = [];
-    this.updateTotalMatches(0); // Reset total matches when search term changes
+    this.updateTotalMatches(0);
   }
 
-  registerMatch(component: string, itemIndex: number) {
-    this.matchPositions.push({component, itemIndex});
-    this.updateTotalMatches(this.matchPositions.length); // Now properly updating
+  registerMatch(component: string, itemIndex: number, isHeader: boolean) {
+    this.matchPositions.push({component, itemIndex, isHeader});
+    this.updateTotalMatches(this.matchPositions.length);
   }
 
   getActiveMatchPosition() {
@@ -38,7 +38,7 @@ export class SearchService {
     const currentIndex = this.activeMatchIndex.getValue();
     const total = this.totalMatches.getValue();
     
-    if (total === 0) return; // No matches to navigate
+    if (total === 0) return;
 
     if (direction === 'up') {
       const newIndex = currentIndex > 0 ? currentIndex - 1 : total - 1;
@@ -58,7 +58,6 @@ export class SearchService {
 
   private updateTotalMatches(count: number) {
     this.totalMatches.next(count);
-    // Reset active index if it's beyond the new count
     if (this.activeMatchIndex.getValue() >= count && count > 0) {
       this.activeMatchIndex.next(count - 1);
     } else if (count === 0) {
