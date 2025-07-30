@@ -51,48 +51,48 @@ export class HighlightDirective implements OnChanges, OnDestroy {
     const regex = new RegExp(this.escapeRegex(term), 'gi');
     let match;
     let lastIndex = 0;
-    const fragment = this.renderer.createDocumentFragment();
+    let newHTML = '';
 
     while ((match = regex.exec(content)) !== null) {
       // Text before match
       if (match.index > lastIndex) {
-        const textNode = this.renderer.createText(
-          content.substring(lastIndex, match.index)
-        );
-        this.renderer.appendChild(fragment, textNode);
+        newHTML += this.escapeHTML(content.substring(lastIndex, match.index));
       }
 
       // Highlighted match
-      const span = this.renderer.createElement('span');
-      this.renderer.addClass(span, 'search-highlight');
-      this.renderer.setProperty(span, 'textContent', match[0]);
-      this.renderer.appendChild(fragment, span);
+      newHTML += `<span class="search-highlight">${this.escapeHTML(match[0])}</span>`;
       
       // Register match with service
-      this.searchService.registerMatch(span);
-
+      // We'll register after DOM update
       lastIndex = regex.lastIndex;
     }
 
     // Remaining text after last match
     if (lastIndex < content.length) {
-      const textNode = this.renderer.createText(
-        content.substring(lastIndex)
-      );
-      this.renderer.appendChild(fragment, textNode);
+      newHTML += this.escapeHTML(content.substring(lastIndex));
     }
 
     // Update DOM
-    this.renderer.setProperty(this.el.nativeElement, 'innerHTML', '');
-    this.renderer.appendChild(this.el.nativeElement, fragment);
+    this.renderer.setProperty(this.el.nativeElement, 'innerHTML', newHTML);
+
+    // Now register all matches
+    const matches = this.el.nativeElement.querySelectorAll('.search-highlight');
+    matches.forEach((el: HTMLElement) => {
+      this.searchService.registerMatch(el);
+    });
   }
 
   private escapeRegex(term: string): string {
     return term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
+  private escapeHTML(html: string): string {
+    const div = document.createElement('div');
+    div.textContent = html;
+    return div.innerHTML;
+  }
+
   removeHighlights() {
-    // Restore original content instead of trying to replace nodes
     this.renderer.setProperty(this.el.nativeElement, 'innerHTML', this.originalHTML);
   }
 
