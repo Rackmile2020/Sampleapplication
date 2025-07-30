@@ -13,13 +13,15 @@
   <div class="accordion-item" *ngFor="let item of accordionData; let i = index">
     <div class="accordion-header" 
          (click)="toggleItem(i)"
-         [innerHTML]="item.title | highlight:searchTerm:isItemActive(i)">
-      <!-- Header content -->
+         [innerHTML]="item.title | highlight:searchTerm:isItemActive(i)"
+         [appRegisterMatch]="{component: 'componentA', itemIndex: i}"
+         [hasMatches]="hasMatches(item.title)">
     </div>
     <div class="accordion-content" 
          *ngIf="expandedItems[i]"
-         [innerHTML]="item.content | highlight:searchTerm:isItemActive(i)">
-      <!-- Content -->
+         [innerHTML]="item.content | highlight:searchTerm:isItemActive(i)"
+         [appRegisterMatch]="{component: 'componentA', itemIndex: i}"
+         [hasMatches]="hasMatches(item.content)">
     </div>
   </div>
 </div>
