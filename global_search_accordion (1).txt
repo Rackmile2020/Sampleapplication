@@ -1,0 +1,120 @@
+/*
+Assuming Angular 19+ with standalone components. Updated to avoid using experimental signals like `signal()` and `toSignal()`.
+*/
+
+// 1. search.service.ts
+import { Injectable } from '@angular/core';
+import { BehaviorSubject } from 'rxjs';
+
+@Injectable({ providedIn: 'root' })
+export class SearchService {
+  private matches: HTMLElement[] = [];
+  private currentIndexSubject = new BehaviorSubject<number>(0);
+  private matchCountSubject = new BehaviorSubject<number>(0);
+
+  currentIndex$ = this.currentIndexSubject.asObservable();
+  matchCount$ = this.matchCountSubject.asObservable();
+
+  setMatches(elements: HTMLElement[]) {
+    this.matches = elements;
+    this.currentIndexSubject.next(0);
+    this.matchCountSubject.next(elements.length);
+    this.scrollToCurrent();
+  }
+
+  navigateNext() {
+    if (!this.matches.length) return;
+    const nextIndex = (this.currentIndexSubject.value + 1) % this.matches.length;
+    this.currentIndexSubject.next(nextIndex);
+    this.scrollToCurrent();
+  }
+
+  navigatePrev() {
+    if (!this.matches.length) return;
+    const prevIndex = (this.currentIndexSubject.value - 1 + this.matches.length) % this.matches.length;
+    this.currentIndexSubject.next(prevIndex);
+    this.scrollToCurrent();
+  }
+
+  scrollToCurrent() {
+    const el = this.matches[this.currentIndexSubject.value];
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+}
+
+// 2. search-bar.component.ts
+import { Component } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { SearchService } from './search.service';
+import { Subscription } from 'rxjs';
+
+@Component({
+  selector: 'app-search-bar',
+  standalone: true,
+  imports: [CommonModule, FormsModule],
+  template: `
+    <input [(ngModel)]="query" (input)="onSearch()" />
+    <button (click)="prev()">⬆</button>
+    <button (click)="next()">⬇</button>
+    <span>{{ currentIndex + 1 }} / {{ totalMatches }}</span>
+    <button (click)="clear()">❌</button>
+  `
+})
+export class SearchBarComponent {
+  query = '';
+  currentIndex = 0;
+  totalMatches = 0;
+
+  private subscriptions: Subscription[] = [];
+
+  constructor(private searchService: SearchService) {
+    this.subscriptions.push(
+      this.searchService.currentIndex$.subscribe(index => this.currentIndex = index),
+      this.searchService.matchCount$.subscribe(count => this.totalMatches = count)
+    );
+  }
+
+  onSearch() {
+    const elements = Array.from(document.querySelectorAll('[data-searchable]'));
+    const matches: HTMLElement[] = [];
+    elements.forEach(el => {
+      const html = el.innerHTML.replace(
+        /<mark class="highlight">(.*?)<\/mark>/g,
+        '$1'
+      );
+      el.innerHTML = html;
+      if (this.query && el.textContent?.toLowerCase().includes(this.query.toLowerCase())) {
+        const regex = new RegExp(`(${this.query})`, 'gi');
+        el.innerHTML = html.replace(regex, '<mark class="highlight">$1</mark>');
+        matches.push(el);
+      }
+    });
+
+    const allAccordions = Array.from(document.querySelectorAll('app-accordion'));
+    allAccordions.forEach(a => a.setAttribute('data-open', 'false'));
+    matches.forEach(el => {
+      const parentAccordion = el.closest('app-accordion');
+      if (parentAccordion) parentAccordion.setAttribute('data-open', 'true');
+    });
+
+    this.searchService.setMatches(matches);
+  }
+
+  next() {
+    this.searchService.navigateNext();
+  }
+
+  prev() {
+    this.searchService.navigatePrev();
+  }
+
+  clear() {
+    this.query = '';
+    this.onSearch();
+  }
+}
+
+// 3. accordion.component.ts (same as before)
+// 4. component-a/b/c.ts (same as before)
+// 5. app.component.ts (same as before)
