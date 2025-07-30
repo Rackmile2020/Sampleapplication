@@ -1,7 +1,7 @@
-// components/component-a/component-a.component.ts
+// component-a.component.ts
 import { Component, OnInit } from '@angular/core';
-import { SearchService } from '../../services/search.service';
-import { map } from 'rxjs/operators';
+import { SearchService } from '../search.service';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-component-a',
@@ -11,8 +11,9 @@ import { map } from 'rxjs/operators';
 export class ComponentA implements OnInit {
   searchTerm = '';
   expandedItems: boolean[] = [];
-  activeMatchIndex = 0;
+  activeMatchIndex = -1;
   totalMatches = 0;
+  private subscriptions: Subscription[] = [];
 
   accordionData = [
     { title: 'First Item', content: 'This is the content for the first item' },
@@ -25,25 +26,34 @@ export class ComponentA implements OnInit {
   }
 
   ngOnInit() {
-    this.searchService.currentSearchTerm.subscribe(term => {
-      if (!term) {
-        this.expandedItems = new Array(this.accordionData.length).fill(false);
-      }
-    });
+    this.subscriptions.push(
+      this.searchService.currentSearchTerm.subscribe(term => {
+        this.searchTerm = term;
+        if (!term) {
+          // Collapse all when search is cleared
+          this.expandedItems = new Array(this.accordionData.length).fill(false);
+        }
+      }),
 
-    this.searchService.currentActiveMatchIndex.subscribe(index => {
-      this.activeMatchIndex = index;
-      const activeMatch = this.searchService.getActiveMatchPosition();
-      if (activeMatch && activeMatch.component === 'componentA') {
-        this.expandedItems = new Array(this.accordionData.length).fill(false);
-        this.expandedItems[activeMatch.itemIndex] = true;
-        setTimeout(() => this.scrollToActiveMatch(), 100);
-      }
-    });
+      this.searchService.currentActiveMatchIndex.subscribe(index => {
+        this.activeMatchIndex = index;
+        const activeMatch = this.searchService.getActiveMatchPosition();
+        if (activeMatch && activeMatch.component === 'componentA') {
+          // Expand only the active match item
+          this.expandedItems = new Array(this.accordionData.length).fill(false);
+          this.expandedItems[activeMatch.itemIndex] = true;
+          this.scrollToActiveMatch();
+        }
+      }),
 
-    this.searchService.currentTotalMatches.subscribe(count => {
-      this.totalMatches = count;
-    });
+      this.searchService.currentTotalMatches.subscribe(count => {
+        this.totalMatches = count;
+      })
+    );
+  }
+
+  ngOnDestroy() {
+    this.subscriptions.forEach(sub => sub.unsubscribe());
   }
 
   onSearch() {
@@ -65,29 +75,26 @@ export class ComponentA implements OnInit {
 
   toggleItem(index: number) {
     if (!this.searchTerm) {
+      // Only allow manual toggle when not searching
       this.expandedItems[index] = !this.expandedItems[index];
     }
   }
 
   private scrollToActiveMatch() {
-    const activeElement = document.querySelector('.active-highlight');
-    if (activeElement) {
-      activeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-  }
-
-  isActiveMatch(component: string, index: number): boolean {
-    const activeMatch = this.searchService.getActiveMatchPosition();
-    return activeMatch?.component === component && activeMatch?.itemIndex === index;
+    setTimeout(() => {
+      const activeElement = document.querySelector('.active-highlight');
+      if (activeElement) {
+        activeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 100);
   }
 
   hasMatches(text: string): boolean {
     return this.searchTerm && text.toLowerCase().includes(this.searchTerm.toLowerCase());
   }
 
-  getMatchIndex(itemIndex: number, isHeader: boolean): number {
-    // This would need to be calculated based on your actual match positions
-    // For simplicity, we'll return a unique index for each potential match
-    return itemIndex * 2 + (isHeader ? 0 : 1);
+  isItemActive(index: number): boolean {
+    const activeMatch = this.searchService.getActiveMatchPosition();
+    return activeMatch?.component === 'componentA' && activeMatch?.itemIndex === index;
   }
 }
