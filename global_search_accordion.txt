@@ -1,0 +1,168 @@
+// ==== search.service.ts ====
+import { Injectable } from '@angular/core';
+import { BehaviorSubject } from 'rxjs';
+
+export interface MatchPosition {
+  component: string;
+  itemIndex: number;
+}
+
+@Injectable({ providedIn: 'root' })
+export class SearchService {
+  private searchTermSubject = new BehaviorSubject<string>('');
+  searchTerm$ = this.searchTermSubject.asObservable();
+
+  private activeMatchIndexSubject = new BehaviorSubject<number>(-1);
+  activeMatchIndex$ = this.activeMatchIndexSubject.asObservable();
+
+  matchPositions: MatchPosition[] = [];
+
+  setSearchTerm(term: string) {
+    this.searchTermSubject.next(term);
+    this.activeMatchIndexSubject.next(0);
+    this.matchPositions = [];
+  }
+
+  clearSearch() {
+    this.setSearchTerm('');
+  }
+
+  registerMatch(component: string, itemIndex: number) {
+    this.matchPositions.push({ component, itemIndex });
+  }
+
+  getActiveMatch(): MatchPosition | null {
+    return this.matchPositions[this.activeMatchIndexSubject.value] || null;
+  }
+
+  nextMatch() {
+    const next = (this.activeMatchIndexSubject.value + 1) % this.matchPositions.length;
+    this.activeMatchIndexSubject.next(next);
+  }
+
+  prevMatch() {
+    const prev = (this.activeMatchIndexSubject.value - 1 + this.matchPositions.length) % this.matchPositions.length;
+    this.activeMatchIndexSubject.next(prev);
+  }
+}
+
+// ==== highlight.pipe.ts ====
+import { Pipe, PipeTransform } from '@angular/core';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+
+@Pipe({ name: 'highlight', standalone: true })
+export class HighlightPipe implements PipeTransform {
+  constructor(private sanitizer: DomSanitizer) {}
+
+  transform(value: string, searchTerm: string, isActive: boolean = false): SafeHtml {
+    if (!searchTerm) return value;
+    const regex = new RegExp(`(${searchTerm})`, 'gi');
+    const replaced = value.replace(regex, `<span class='highlight ${isActive ? 'active' : ''}'>$1</span>`);
+    return this.sanitizer.bypassSecurityTrustHtml(replaced);
+  }
+}
+
+// ==== accordion-base.component.ts ====
+import { OnDestroy, OnInit, Directive, Input } from '@angular/core';
+import { Subscription } from 'rxjs';
+import { SearchService } from './search.service';
+
+@Directive()
+export class AccordionBaseComponent implements OnInit, OnDestroy {
+  @Input() componentName = '';
+  accordionData: any[] = [];
+  expandedItems: boolean[] = [];
+  searchTerm = '';
+  subs = new Subscription();
+
+  constructor(protected searchService: SearchService) {}
+
+  ngOnInit() {
+    this.subs.add(this.searchService.searchTerm$.subscribe(term => {
+      this.searchTerm = term;
+      this.expandedItems = this.accordionData.map((item, index) => {
+        const match = this.hasMatch(item.title) || this.hasMatch(item.body);
+        if (match) this.searchService.registerMatch(this.componentName, index);
+        return match;
+      });
+    }));
+  }
+
+  hasMatch(text: string): boolean {
+    return text?.toLowerCase().includes(this.searchTerm.toLowerCase());
+  }
+
+  isItemActive(index: number): boolean {
+    const active = this.searchService.getActiveMatch();
+    return active?.component === this.componentName && active?.itemIndex === index;
+  }
+
+  toggle(index: number) {
+    this.expandedItems[index] = !this.expandedItems[index];
+  }
+
+  ngOnDestroy() {
+    this.subs.unsubscribe();
+  }
+}
+
+// ==== component-a.component.ts ====
+import { Component, OnInit } from '@angular/core';
+import { AccordionBaseComponent } from './accordion-base.component';
+import { SearchService } from './search.service';
+import { HighlightPipe } from './highlight.pipe';
+import { CommonModule } from '@angular/common';
+
+@Component({
+  selector: 'app-component-a',
+  standalone: true,
+  templateUrl: './component-a.component.html',
+  imports: [CommonModule, HighlightPipe],
+})
+export class ComponentAComponent extends AccordionBaseComponent implements OnInit {
+  constructor(searchService: SearchService) {
+    super(searchService);
+    this.componentName = 'A';
+  }
+
+  ngOnInit(): void {
+    this.accordionData = [
+      { title: 'Angular', body: 'Angular is awesome' },
+      { title: 'React', body: 'React is declarative' }
+    ];
+    super.ngOnInit();
+  }
+
+  onSearch(term: string) {
+    this.searchService.setSearchTerm(term);
+  }
+
+  clearSearch() {
+    this.searchService.clearSearch();
+  }
+
+  next() {
+    this.searchService.nextMatch();
+  }
+
+  prev() {
+    this.searchService.prevMatch();
+  }
+}
+
+// ==== component-a.component.html ====
+<input type="text" (input)="onSearch($event.target.value)" placeholder="Search" />
+<button (click)="prev()">⬆️</button>
+<button (click)="next()">⬇️</button>
+<button (click)="clearSearch()">❌</button>
+
+<div *ngFor="let item of accordionData; let i = index">
+  <div (click)="toggle(i)">
+    <div [innerHTML]="item.title | highlight:searchTerm:isItemActive(i)"></div>
+  </div>
+  <div *ngIf="expandedItems[i]">
+    <div [innerHTML]="item.body | highlight:searchTerm:isItemActive(i)"></div>
+  </div>
+</div>
+
+<!-- Repeat the same pattern for ComponentBComponent and ComponentCComponent -->
