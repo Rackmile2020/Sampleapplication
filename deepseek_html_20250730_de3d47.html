@@ -1,0 +1,29 @@
+<!-- components/component-a/component-a.component.html -->
+<div class="search-container">
+  <input type="text" [(ngModel)]="searchTerm" (input)="onSearch()" placeholder="Search...">
+  <button (click)="navigateUp()">↑</button>
+  <button (click)="navigateDown()">↓</button>
+  <button (click)="clearSearch()">×</button>
+  <span class="match-counter" *ngIf="searchTerm && totalMatches > 0">
+    {{ activeMatchIndex + 1 }}/{{ totalMatches }}
+  </span>
+</div>
+
+<div class="accordion">
+  <div class="accordion-item" *ngFor="let item of accordionData; let i = index">
+    <div class="accordion-header" 
+         (click)="toggleItem(i)"
+         [innerHTML]="item.title | highlight:searchTerm:activeMatchIndex:getMatchIndex(i, true)"
+         [class.active-match]="isActiveMatch('componentA', i)"
+         [appRegisterMatch]="{component: 'componentA', itemIndex: i, isHeader: true}"
+         [hasMatches]="hasMatches(item.title)">
+    </div>
+    <div class="accordion-content" 
+         *ngIf="expandedItems[i]"
+         [innerHTML]="item.content | highlight:searchTerm:activeMatchIndex:getMatchIndex(i, false)"
+         [class.active-match]="isActiveMatch('componentA', i)"
+         [appRegisterMatch]="{component: 'componentA', itemIndex: i, isHeader: false}"
+         [hasMatches]="hasMatches(item.content)">
+    </div>
+  </div>
+</div>
