@@ -1,13 +1,22 @@
-
-<div class="search-bar">
-  <input [(ngModel)]="searchText" placeholder="Search term..." />
-  <button (click)="onSearch()">Search</button>
-  <button (click)="navigate('up')">⬆️</button>
-  <button (click)="navigate('down')">⬇️</button>
-  <span *ngIf="getCount()">{{ currentIndex + 1 }} / {{ getCount() }}</span>
-  <button (click)="clear()">Clear</button>
+<!-- component-a.component.html -->
+<div class="search-container">
+  <input type="text" [(ngModel)]="searchTerm" (input)="onSearch()" placeholder="Search...">
+  <button (click)="navigateUp()">↑</button>
+  <button (click)="navigateDown()">↓</button>
+  <button (click)="clearSearch()">×</button>
 </div>
 
-<app-accordion-group [data]="dataA"></app-accordion-group>
-<app-component-b></app-component-b>
-<app-component-c></app-component-c>
+<div class="accordion">
+  <div class="accordion-item" *ngFor="let item of accordionData; let i = index">
+    <div class="accordion-header" 
+         (click)="toggleItem(i)"
+         [innerHTML]="item.title | highlight:searchTerm:searchService.currentActiveMatchIndex | async"
+         [class.active-match]="isActiveMatch('componentA', i)">
+    </div>
+    <div class="accordion-content" 
+         *ngIf="expandedItems[i]"
+         [innerHTML]="item.content | highlight:searchTerm:searchService.currentActiveMatchIndex | async"
+         [class.active-match]="isActiveMatch('componentA', i)">
+    </div>
+  </div>
+</div>
