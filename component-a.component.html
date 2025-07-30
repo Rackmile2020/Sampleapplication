@@ -20,3 +20,32 @@
     </div>
   </div>
 </div>
+////////////////
+// highlight.pipe.ts
+import { Pipe, PipeTransform, SecurityContext } from '@angular/core';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { SearchService } from './search.service';
+
+@Pipe({
+  name: 'highlight'
+})
+export class HighlightPipe implements PipeTransform {
+  constructor(private sanitizer: DomSanitizer, private searchService: SearchService) {}
+
+  transform(value: string, searchTerm: string, activeIndex?: number): SafeHtml {
+    if (!searchTerm || !value) {
+      return value;
+    }
+
+    const re = new RegExp(searchTerm, 'gi');
+    let matchCount = 0;
+    
+    const highlighted = value.replace(re, match => {
+      const isActive = activeIndex === matchCount;
+      matchCount++;
+      return `<span class="highlight ${isActive ? 'active-highlight' : ''}">${match}</span>`;
+    });
+
+    return this.sanitizer.sanitize(SecurityContext.HTML, highlighted) || '';
+  }
+}
