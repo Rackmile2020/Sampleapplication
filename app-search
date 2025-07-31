@@ -1,0 +1,26 @@
+import { Component } from '@angular/core';
+import { SearchService } from '../search.service';
+
+@Component({
+  selector: 'app-search-bar',
+  standalone: true,
+  imports: [],
+  templateUrl: './search-bar.component.html',
+  styleUrl: './search-bar.component.css',
+})
+export class SearchBarComponent {
+  constructor(public searchService: SearchService) {}
+
+  onInput(event: Event) {
+    const value = (event.target as HTMLInputElement).value;
+    this.searchService.setQuery(value.trim());
+  }
+
+  clearSearch() {
+    this.searchService.clear();
+  }
+
+  navigate(direction: 'up' | 'down') {
+    this.searchService.navigate(direction);
+  }
+}
