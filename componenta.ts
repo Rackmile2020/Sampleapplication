@@ -1,93 +1,51 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
-import { SearchService } from '../../../core/services/search.service';
-import { HighlightDirective } from '../../../core/directives/highlight.directive';
+import { Component, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Subject, takeUntil } from 'rxjs';
+import { AccordionComponent } from './accordion.component';
 
 @Component({
   selector: 'app-component-a',
   standalone: true,
-  imports: [CommonModule, HighlightDirective],
-  templateUrl: './component-a.component.html',
-  styleUrls: ['./component-a.component.scss']
+  imports: [CommonModule, AccordionComponent],
+  template: `
+    <app-accordion
+      *ngFor="let item of items; let i = index"
+      [heading]="item.heading"
+      [data]="item.data"
+      [searchTerm]="searchTerm"
+      [expanded]="shouldExpand(item)"
+      (toggleAccordion)="toggle(item)"
+    ></app-accordion>
+  `
 })
-export class ComponentAComponent implements OnInit, OnDestroy {
+export class ComponentA {
+  @Input() searchTerm = '';
+
   items = [
-    { 
-      id: 'a-1', 
-      title: 'First Item', 
-      content: 'This is <strong>bold</strong> content for the first item', 
-      expanded: false
+    {
+      id: 36,
+      heading: 'sample',
+      data: `<div class="tile_wrap d-flex align-items-stretch px-0 px-md-0 mb-2 g-2 g-md-4">
+        <div class="static_wrap d-flex flex-column flex-md-row justify-content-between p-3 px-md-4">
+        <p>This is a sample paragraph with search keyword Angular</p></div></div>`,
+      expanded: false,
     },
-    { 
-      id: 'a-2', 
-      title: 'Second Item', 
-      content: 'Second item content with <em>italic</em> text', 
-      expanded: false
-    },
-    { 
-      id: 'a-3', 
-      title: 'Third Item', 
-      content: 'Third item has <u>underlined</u> information', 
+    {
+      id: 37,
+      heading: 'example',
+      data: '<div><p>Another example with the term Angular again</p></div>',
       expanded: false
     }
   ];
-  
-  private destroy$ = new Subject<void>();
-  currentSearchTerm = '';
 
-  constructor(private searchService: SearchService) {}
-
-  ngOnInit() {
-    this.searchService.searchTerm$.pipe(
-      takeUntil(this.destroy$)
-    ).subscribe(term => {
-      this.currentSearchTerm = term;
-      if (term) {
-        this.updateAccordions(term);
-      } else {
-        // Reset accordions when search is cleared
-        this.items.forEach(item => item.expanded = false);
-      }
-    });
-    
-    this.searchService.accordionStates$.pipe(
-      takeUntil(this.destroy$)
-    ).subscribe(states => {
-      this.items.forEach(item => {
-        const state = states.get(item.id);
-        if (state !== undefined) {
-          item.expanded = state;
-        }
-      });
-    });
+  toggle(clicked: any) {
+    this.items = this.items.map(item =>
+      item.id === clicked.id ? { ...item, expanded: !item.expanded } : item
+    );
   }
 
-  toggleItem(item: any) {
-    if (!this.currentSearchTerm) {
-      item.expanded = !item.expanded;
-      this.searchService.setAccordionState(item.id, item.expanded);
-    }
-  }
-
-  private updateAccordions(term: string) {
-    const searchTerm = term.toLowerCase();
-    
-    this.items.forEach(item => {
-      // Create text-only version for matching
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = item.content;
-      const textContent = tempDiv.textContent || '';
-      
-      const titleMatch = item.title.toLowerCase().includes(searchTerm);
-      const contentMatch = textContent.toLowerCase().includes(searchTerm);
-      
-      this.searchService.setAccordionState(item.id, titleMatch || contentMatch);
-    });
-  }
-
-  ngOnDestroy() {
-    this.destroy$.next();
-    this.destroy$.complete();
+  shouldExpand(item: any) {
+    if (!this.searchTerm) return item.expanded;
+    const lower = this.searchTerm.toLowerCase();
+    return item.data.toLowerCase().includes(lower) || item.heading.toLowerCase().includes(lower);
   }
 }
