@@ -1,13 +1,13 @@
 <div *ngFor="let item of befits; let i = index">
   <div class="accordion">
-    <div class="heading" (click)="item.expanded = !item.expanded">{{ item.heading }}</div>
+    <div class="heading" (click)="item.expanded = !item.expanded">
+      <span [innerHTML]="highlightedHeadings[i]"></span>
+    </div>
     <div class="body" *ngIf="item.expanded">
       <div [innerHTML]="sanitizedHtml[i]"></div>
     </div>
   </div>
 </div>
-
-
 .highlight {
   background-color: yellow;
 }
@@ -18,4 +18,9 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  margin-bottom: 12px;
+}
+.accordion .heading {
+  font-weight: bold;
+  cursor: pointer;
 }
