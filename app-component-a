@@ -1,72 +1,69 @@
 import { Component, OnInit } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
-import { CommonModule } from '@angular/common';
 import { SearchService } from '../search.service';
+import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'app-component-a',
   standalone: true,
   imports: [CommonModule],
   templateUrl: './component-a.component.html',
-  styleUrl: './component-a.component.css',
+  styleUrls: ['./component-a.component.css']
 })
 export class ComponentAComponent implements OnInit {
   befits = [
     {
-      id: 36,
+      id: 1,
       heading: 'Sample Heading',
-      data: `<div><p>This is a searchable paragraph.</p></div>`,
+      data: `<p>This is sample content about Angular search.</p>`,
       expanded: false,
     },
     {
-      id: 37,
-      heading: 'Test Title',
-      data: `<div><p>Testing the heading and data match!</p></div>`,
+      id: 2,
+      heading: 'Test Block',
+      data: `<div>Matching this should highlight and expand.</div>`,
       expanded: false,
-    }
+    },
   ];
 
   sanitizedHtml: SafeHtml[] = [];
   highlightedHeadings: string[] = [];
 
   constructor(
-    private searchService: SearchService,
-    private sanitizer: DomSanitizer
+    private sanitizer: DomSanitizer,
+    private searchService: SearchService
   ) {}
 
   ngOnInit() {
-    this.searchService.query$.subscribe((query) => {
-      const allMatches: HTMLElement[] = [];
+    this.searchService.query$.subscribe(query => {
       const regex = new RegExp(`(${query})`, 'gi');
-
       this.sanitizedHtml = [];
       this.highlightedHeadings = [];
 
       this.befits.forEach((item, index) => {
-        let hasMatch = false;
+        let match = false;
 
-        // Heading match
-        let highlightedHeading = item.heading;
-        if (query && item.heading.match(regex)) {
-          highlightedHeading = item.heading.replace(regex, `<mark class="highlight">$1</mark>`);
-          hasMatch = true;
+        // Highlight heading
+        let heading = item.heading;
+        if (query && heading.match(regex)) {
+          heading = heading.replace(regex, '<mark class="highlight">$1</mark>');
+          match = true;
         }
+        this.highlightedHeadings[index] = heading;
 
-        // Data match
-        let highlightedData = item.data;
-        if (query && item.data.match(regex)) {
-          highlightedData = item.data.replace(regex, `<mark class="highlight">$1</mark>`);
-          hasMatch = true;
+        // Highlight data
+        let content = item.data;
+        if (query && content.match(regex)) {
+          content = content.replace(regex, '<mark class="highlight">$1</mark>');
+          match = true;
         }
-
-        this.highlightedHeadings[index] = highlightedHeading;
-        this.sanitizedHtml[index] = this.sanitizer.bypassSecurityTrustHtml(highlightedData);
-        item.expanded = hasMatch;
+        this.sanitizedHtml[index] = this.sanitizer.bypassSecurityTrustHtml(content);
+        item.expanded = match;
       });
 
       setTimeout(() => {
-        const matches = Array.from(document.querySelectorAll('.highlight')) as HTMLElement[];
-        this.searchService.registerMatches(matches);
+        const elements = Array.from(document.querySelectorAll('.highlight')) as HTMLElement[];
+        this.searchService.registerMatches(elements);
       });
     });
   }
