@@ -1,0 +1,20 @@
+<div class="component">
+  <h2>Component A</h2>
+  
+  <div *ngFor="let item of items" class="accordion-item">
+    <div 
+      class="accordion-header" 
+      (click)="toggleItem(item)"
+      [class.expanded]="item.expanded"
+    >
+      <span [appHighlight]="searchService.searchTerm$ | async" 
+            [accordionId]="item.id">{{ item.title }}</span>
+      <span class="toggle-icon">{{ item.expanded ? '▼' : '►' }}</span>
+    </div>
+    
+    <div *ngIf="item.expanded" class="accordion-content">
+      <p [appHighlight]="searchService.searchTerm$ | async" 
+         [accordionId]="item.id">{{ item.content }}</p>
+    </div>
+  </div>
+</div>
