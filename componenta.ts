@@ -19,6 +19,7 @@ export class ComponentAComponent implements OnInit, OnDestroy {
   ];
   
   private destroy$ = new Subject<void>();
+  currentSearchTerm = '';
 
   constructor(private searchService: SearchService) {}
 
@@ -26,6 +27,7 @@ export class ComponentAComponent implements OnInit, OnDestroy {
     this.searchService.searchTerm$.pipe(
       takeUntil(this.destroy$)
     ).subscribe(term => {
+      this.currentSearchTerm = term;
       if (term) {
         this.updateAccordions(term);
       }
@@ -45,10 +47,10 @@ export class ComponentAComponent implements OnInit, OnDestroy {
 
   toggleItem(item: any) {
     // Only allow manual toggle when no active search
-    if (!this.searchService.searchTerm$.value) {
+    if (!this.currentSearchTerm) {
       item.expanded = !item.expanded;
+      this.searchService.setAccordionState(item.id, item.expanded);
     }
-    this.searchService.setAccordionState(item.id, item.expanded);
   }
 
   private updateAccordions(term: string) {
