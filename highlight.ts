@@ -5,13 +5,12 @@ import {
 import { SearchService } from '../services/search.service';
 
 @Directive({
-  selector: '[appHighlight]',
-  standalone: true
+  selector: '[appHighlight]'
 })
 export class HighlightDirective implements OnInit, OnChanges, OnDestroy {
   @Input() appHighlight = '';
   @Input() accordionId?: string;
-  private originalContent = '';
+  private originalHTML = '';
   private matches: HTMLElement[] = [];
   private observer?: MutationObserver;
 
@@ -22,13 +21,13 @@ export class HighlightDirective implements OnInit, OnChanges, OnDestroy {
   ) {}
 
   ngOnInit() {
-    // Store original content
-    this.originalContent = this.el.nativeElement.innerHTML;
+    // Store original HTML content
+    this.originalHTML = this.el.nativeElement.innerHTML;
     
     // Set up mutation observer to track content changes
     this.observer = new MutationObserver(() => {
       if (!this.appHighlight) {
-        this.originalContent = this.el.nativeElement.innerHTML;
+        this.originalHTML = this.el.nativeElement.innerHTML;
       }
     });
     
@@ -37,6 +36,11 @@ export class HighlightDirective implements OnInit, OnChanges, OnDestroy {
       subtree: true,
       characterData: true
     });
+    
+    // Initial highlight if search term exists
+    if (this.appHighlight) {
+      setTimeout(() => this.highlight(this.appHighlight));
+    }
   }
 
   ngOnChanges(changes: SimpleChanges) {
@@ -46,28 +50,21 @@ export class HighlightDirective implements OnInit, OnChanges, OnDestroy {
   }
 
   highlight(term: string) {
-    this.clearHighlights();
-    
     if (!term) {
-      // Restore original content
-      this.renderer.setProperty(this.el.nativeElement, 'innerHTML', this.originalContent);
+      this.clearHighlights();
       return;
     }
 
-    // Get current content (could be static text or HTML)
-    const currentContent = this.originalContent;
-    const regex = new RegExp(this.escapeRegex(term), 'gi');
-    
-    // Create temporary container
+    // Create a temporary div to preserve HTML structure
     const tempDiv = this.renderer.createElement('div');
-    this.renderer.setProperty(tempDiv, 'innerHTML', currentContent);
+    this.renderer.setProperty(tempDiv, 'innerHTML', this.originalHTML);
     
     // Process all text nodes
-    this.processTextNodes(tempDiv, regex);
+    this.processTextNodes(tempDiv, term);
     
-    // Update element with highlighted content
+    // Update DOM with highlighted content
     this.renderer.setProperty(this.el.nativeElement, 'innerHTML', tempDiv.innerHTML);
-    
+
     // Register matches
     this.matches = Array.from(this.el.nativeElement.querySelectorAll('.search-highlight'));
     this.matches.forEach(el => {
@@ -78,18 +75,19 @@ export class HighlightDirective implements OnInit, OnChanges, OnDestroy {
     });
   }
 
-  private processTextNodes(node: Node, regex: RegExp) {
+  private processTextNodes(node: Node, term: string) {
     if (node.nodeType === Node.TEXT_NODE) {
-      this.processTextNode(node, regex);
+      this.processTextNode(node, term);
     } else if (node.nodeType === Node.ELEMENT_NODE) {
       for (let i = 0; i < node.childNodes.length; i++) {
-        this.processTextNodes(node.childNodes[i], regex);
+        this.processTextNodes(node.childNodes[i], term);
       }
     }
   }
 
-  private processTextNode(node: Node, regex: RegExp) {
+  private processTextNode(node: Node, term: string) {
     const text = node.textContent || '';
+    const regex = new RegExp(this.escapeRegex(term), 'gi');
     const matches = [...text.matchAll(regex)];
     
     if (matches.length === 0) return;
@@ -134,10 +132,7 @@ export class HighlightDirective implements OnInit, OnChanges, OnDestroy {
   }
 
   clearHighlights() {
-    // Clear any existing highlights
-    if (this.originalContent) {
-      this.renderer.setProperty(this.el.nativeElement, 'innerHTML', this.originalContent);
-    }
+    this.renderer.setProperty(this.el.nativeElement, 'innerHTML', this.originalHTML);
     this.matches = [];
   }
 
