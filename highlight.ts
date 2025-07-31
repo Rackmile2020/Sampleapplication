@@ -8,7 +8,7 @@ import { SearchService } from '../services/search.service';
 export class HighlightDirective implements OnChanges, OnDestroy {
   @Input() appHighlight = '';
   @Input() accordionId?: string;
-  private originalContent = '';
+  private originalHTML = '';
   private matches: HTMLElement[] = [];
 
   constructor(
@@ -16,8 +16,8 @@ export class HighlightDirective implements OnChanges, OnDestroy {
     private renderer: Renderer2,
     private searchService: SearchService
   ) {
-    // Store original text content
-    this.originalContent = this.el.nativeElement.textContent;
+    // Store original HTML content
+    this.originalHTML = this.el.nativeElement.innerHTML;
   }
 
   ngOnChanges(changes: SimpleChanges) {
@@ -27,53 +27,99 @@ export class HighlightDirective implements OnChanges, OnDestroy {
   }
 
   highlight(term: string) {
+    // Clear previous highlights
     this.clearHighlights();
-    if (!term) return;
+    
+    if (!term) {
+      // Restore original content
+      this.renderer.setProperty(this.el.nativeElement, 'innerHTML', this.originalHTML);
+      return;
+    }
 
-    const content = this.originalContent;
-    const regex = new RegExp(`(${this.escapeRegex(term)})`, 'gi');
+    // Get text content for matching
+    const textContent = this.el.nativeElement.textContent || '';
+    const regex = new RegExp(this.escapeRegex(term), 'gi');
     let match;
     let lastIndex = 0;
     let newHTML = '';
 
-    while ((match = regex.exec(content)) !== null) {
-      // Text before match
-      if (match.index > lastIndex) {
-        newHTML += this.escapeHTML(content.substring(lastIndex, match.index));
-      }
-
-      // Highlighted match
-      newHTML += `<span class="search-highlight" data-accordion-id="${this.accordionId}">${this.escapeHTML(match[0])}</span>`;
-      lastIndex = regex.lastIndex;
-    }
-
-    // Remaining text after last match
-    if (lastIndex < content.length) {
-      newHTML += this.escapeHTML(content.substring(lastIndex));
-    }
-
-    // Update DOM
-    this.renderer.setProperty(this.el.nativeElement, 'innerHTML', newHTML);
+    // Create a temporary div to preserve HTML structure
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = this.originalHTML;
+    
+    // Process all text nodes
+    this.processNode(tempDiv, regex);
+    
+    // Update DOM with highlighted content
+    this.renderer.setProperty(this.el.nativeElement, 'innerHTML', tempDiv.innerHTML);
 
     // Register matches
     this.matches = Array.from(this.el.nativeElement.querySelectorAll('.search-highlight'));
     this.matches.forEach(el => {
+      if (this.accordionId) {
+        el.setAttribute('data-accordion-id', this.accordionId);
+      }
       this.searchService.registerMatch(el);
     });
+  }
+
+  private processNode(node: Node, regex: RegExp) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      this.processTextNode(node, regex);
+    } else if (node.nodeType === Node.ELEMENT_NODE) {
+      for (let i = 0; i < node.childNodes.length; i++) {
+        this.processNode(node.childNodes[i], regex);
+      }
+    }
+  }
+
+  private processTextNode(node: Node, regex: RegExp) {
+    const text = node.textContent || '';
+    const matches = [...text.matchAll(regex)];
+    
+    if (matches.length === 0) return;
+    
+    const fragment = document.createDocumentFragment();
+    let lastIndex = 0;
+    
+    matches.forEach(match => {
+      if (match.index === undefined) return;
+      
+      // Text before match
+      if (match.index > lastIndex) {
+        fragment.appendChild(document.createTextNode(
+          text.substring(lastIndex, match.index)
+        ));
+      }
+      
+      // Highlighted match
+      const span = document.createElement('span');
+      span.className = 'search-highlight';
+      span.textContent = match[0];
+      fragment.appendChild(span);
+      
+      lastIndex = match.index + match[0].length;
+    });
+    
+    // Remaining text
+    if (lastIndex < text.length) {
+      fragment.appendChild(document.createTextNode(
+        text.substring(lastIndex)
+      ));
+    }
+    
+    // Replace original text node with fragment
+    if (node.parentNode) {
+      node.parentNode.replaceChild(fragment, node);
+    }
   }
 
   private escapeRegex(term: string): string {
     return term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
-  private escapeHTML(html: string): string {
-    const div = document.createElement('div');
-    div.textContent = html;
-    return div.innerHTML;
-  }
-
   clearHighlights() {
-    this.renderer.setProperty(this.el.nativeElement, 'textContent', this.originalContent);
+    this.renderer.setProperty(this.el.nativeElement, 'innerHTML', this.originalHTML);
     this.matches = [];
   }
 
