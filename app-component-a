@@ -14,19 +14,20 @@ export class ComponentAComponent implements OnInit {
   befits = [
     {
       id: 36,
-      heading: 'Sample',
-      data: `<div><p>This is sample paragraph. Search here for test.</p></div>`,
+      heading: 'Sample Heading',
+      data: `<div><p>This is a searchable paragraph.</p></div>`,
       expanded: false,
     },
     {
       id: 37,
-      heading: 'Test Accordion',
-      data: `<div><p>Another paragraph with searchable content and more text.</p></div>`,
+      heading: 'Test Title',
+      data: `<div><p>Testing the heading and data match!</p></div>`,
       expanded: false,
-    },
+    }
   ];
 
   sanitizedHtml: SafeHtml[] = [];
+  highlightedHeadings: string[] = [];
 
   constructor(
     private searchService: SearchService,
@@ -35,18 +36,32 @@ export class ComponentAComponent implements OnInit {
 
   ngOnInit() {
     this.searchService.query$.subscribe((query) => {
-      this.sanitizedHtml = [];
       const allMatches: HTMLElement[] = [];
+      const regex = new RegExp(`(${query})`, 'gi');
+
+      this.sanitizedHtml = [];
+      this.highlightedHeadings = [];
 
       this.befits.forEach((item, index) => {
-        const regex = new RegExp(`(${query})`, 'gi');
-        item.expanded = false;
-        if (query && (item.data + item.heading).match(regex)) {
-          item.expanded = true;
+        let hasMatch = false;
+
+        // Heading match
+        let highlightedHeading = item.heading;
+        if (query && item.heading.match(regex)) {
+          highlightedHeading = item.heading.replace(regex, `<mark class="highlight">$1</mark>`);
+          hasMatch = true;
         }
 
-        const highlighted = item.data.replace(regex, `<mark class="highlight">$1</mark>`);
-        this.sanitizedHtml[index] = this.sanitizer.bypassSecurityTrustHtml(highlighted);
+        // Data match
+        let highlightedData = item.data;
+        if (query && item.data.match(regex)) {
+          highlightedData = item.data.replace(regex, `<mark class="highlight">$1</mark>`);
+          hasMatch = true;
+        }
+
+        this.highlightedHeadings[index] = highlightedHeading;
+        this.sanitizedHtml[index] = this.sanitizer.bypassSecurityTrustHtml(highlightedData);
+        item.expanded = hasMatch;
       });
 
       setTimeout(() => {
