@@ -8,14 +8,16 @@ import { SearchService } from '../services/search.service';
 export class HighlightDirective implements OnChanges, OnDestroy {
   @Input() appHighlight = '';
   @Input() accordionId?: string;
-  private originalHTML = '';
+  private originalContent = '';
+  private matches: HTMLElement[] = [];
 
   constructor(
     private el: ElementRef,
     private renderer: Renderer2,
     private searchService: SearchService
   ) {
-    this.originalHTML = this.el.nativeElement.innerHTML;
+    // Store original text content (not HTML)
+    this.originalContent = this.el.nativeElement.textContent;
   }
 
   ngOnChanges(changes: SimpleChanges) {
@@ -28,7 +30,7 @@ export class HighlightDirective implements OnChanges, OnDestroy {
     this.clearHighlights();
     if (!term) return;
 
-    const content = this.el.nativeElement.textContent;
+    const content = this.originalContent;
     const regex = new RegExp(this.escapeRegex(term), 'gi');
     let match;
     let lastIndex = 0;
@@ -41,9 +43,7 @@ export class HighlightDirective implements OnChanges, OnDestroy {
       }
 
       // Highlighted match
-      const matchId = `match-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      newHTML += `<span class="search-highlight" id="${matchId}" 
-                  data-accordion-id="${this.accordionId}">${this.escapeHTML(match[0])}</span>`;
+      newHTML += `<span class="search-highlight" data-accordion-id="${this.accordionId}">${this.escapeHTML(match[0])}</span>`;
       lastIndex = regex.lastIndex;
     }
 
@@ -56,8 +56,8 @@ export class HighlightDirective implements OnChanges, OnDestroy {
     this.renderer.setProperty(this.el.nativeElement, 'innerHTML', newHTML);
 
     // Register matches
-    const matches = this.el.nativeElement.querySelectorAll('.search-highlight');
-    matches.forEach((el: HTMLElement) => {
+    this.matches = Array.from(this.el.nativeElement.querySelectorAll('.search-highlight'));
+    this.matches.forEach(el => {
       this.searchService.registerMatch(el);
     });
   }
@@ -73,7 +73,12 @@ export class HighlightDirective implements OnChanges, OnDestroy {
   }
 
   clearHighlights() {
-    this.renderer.setProperty(this.el.nativeElement, 'innerHTML', this.originalHTML);
+    this.matches.forEach(el => {
+      this.renderer.removeChild(this.el.nativeElement, el);
+    });
+    
+    // Restore original text content
+    this.renderer.setProperty(this.el.nativeElement, 'textContent', this.originalContent);
   }
 
   ngOnDestroy() {
