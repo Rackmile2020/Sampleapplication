@@ -1,61 +1,78 @@
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, combineLatest } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { BehaviorSubject } from 'rxjs';
 
 @Injectable({ providedIn: 'root' })
 export class SearchService {
-  query$ = new BehaviorSubject<string>('');
-  matchElements: HTMLElement[] = [];
-  currentIndex = -1;
+  private querySubject = new BehaviorSubject<string>('');
+  query$ = this.querySubject.asObservable();
 
-  // Exposed display for UI: "0/30", "1/30"
-  displayIndex$ = combineLatest([
-    this.query$,
-    new BehaviorSubject(0) // trigger change
-  ]).pipe(
-    map(() => {
-      const total = this.matchElements.length;
-      if (total === 0) return `0/0`;
-      return `${this.currentIndex + 1}/${total}`;
-    })
-  );
+  private matchElements: HTMLElement[] = [];
+  private currentIndexSubject = new BehaviorSubject<number>(0);
+  currentIndex$ = this.currentIndexSubject.asObservable();
+
+  get currentIndex(): number {
+    return this.currentIndexSubject.value;
+  }
+
+  get matchCount(): number {
+    return this.matchElements.length;
+  }
 
   setQuery(query: string) {
-    this.query$.next(query);
-    this.currentIndex = -1;
+    this.querySubject.next(query);
+    this.resetIndex();
+  }
+
+  resetIndex() {
+    this.currentIndexSubject.next(0);
+  }
+
+  clear() {
+    this.querySubject.next('');
+    this.matchElements.forEach(el => el.classList.remove('highlight', 'current-highlight'));
+    this.matchElements = [];
+    this.currentIndexSubject.next(0);
   }
 
   registerMatches(matches: HTMLElement[]) {
+    this.matchElements.forEach(el => el.classList.remove('highlight', 'current-highlight'));
     this.matchElements = matches;
-    this.currentIndex = -1;
+
+    this.matchElements.forEach(el => el.classList.add('highlight'));
+    this.resetIndex();
     this.highlightCurrent();
   }
 
   navigate(direction: 'up' | 'down') {
-    const total = this.matchElements.length;
+    const total = this.matchCount;
     if (total === 0) return;
 
+    let newIndex = this.currentIndex;
     if (direction === 'down') {
-      this.currentIndex = (this.currentIndex + 1) % total;
+      newIndex = (newIndex + 1) % total;
     } else {
-      this.currentIndex = (this.currentIndex - 1 + total) % total;
+      newIndex = (newIndex - 1 + total) % total;
     }
-
+    this.currentIndexSubject.next(newIndex);
     this.highlightCurrent();
-    const el = this.matchElements[this.currentIndex];
-    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    this.scrollToCurrent();
   }
 
-  highlightCurrent() {
-    this.matchElements.forEach((el, index) => {
-      el.classList.toggle('current-highlight', index === this.currentIndex);
+  private highlightCurrent() {
+    this.matchElements.forEach((el, i) => {
+      el.classList.toggle('current-highlight', i === this.currentIndex);
     });
   }
 
-  clear() {
-    this.setQuery('');
-    this.matchElements.forEach(el => el.classList.remove('highlight', 'current-highlight'));
-    this.matchElements = [];
-    this.currentIndex = -1;
+  private scrollToCurrent() {
+    const el = this.matchElements[this.currentIndex];
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
+
+  getDisplayIndex(): string {
+    if (this.matchCount === 0) return '0/0';
+    return `${this.currentIndex + 1}/${this.matchCount}`;
   }
 }
