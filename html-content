@@ -1,0 +1,26 @@
+import { Component, Input, OnChanges, SimpleChanges } from '@angular/core';
+
+@Component({
+  selector: 'app-html-content',
+  template: `<div [appHighlight]="searchTerm" [accordionId]="accordionId" [innerHTML]="content"></div>`,
+  styles: [`:host { display: contents; }`]
+})
+export class HtmlContentComponent implements OnChanges {
+  @Input() content: string = '';
+  @Input() searchTerm: string = '';
+  @Input() accordionId?: string;
+
+  ngOnChanges(changes: SimpleChanges) {
+    if (changes['content']) {
+      // Clean up potentially unsafe content
+      this.content = this.sanitizeHtml(this.content);
+    }
+  }
+
+  private sanitizeHtml(html: string): string {
+    // Basic sanitization - implement more based on your needs
+    return html
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+      .replace(/javascript:/gi, '');
+  }
+}
