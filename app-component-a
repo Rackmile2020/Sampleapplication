@@ -1,133 +1,58 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
-import { SearchService } from '../../../core/services/search.service';
-import { HighlightDirective } from '../../../core/directives/highlight.directive';
-import { HtmlContentComponent } from './html-content.component';
+import { Component, OnInit } from '@angular/core';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { CommonModule } from '@angular/common';
-import { Subject, takeUntil } from 'rxjs';
-
-interface AccordionItem {
-  id: string;
-  heading: string;
-  data: string;
-  expanded: boolean;
-}
+import { SearchService } from '../search.service';
 
 @Component({
   selector: 'app-component-a',
   standalone: true,
-  imports: [CommonModule, HighlightDirective, HtmlContentComponent],
-  template: `
-    <div class="component">
-      <h2>Component A</h2>
-      
-      <div *ngFor="let item of items" class="accordion-item">
-        <div 
-          class="accordion-header" 
-          (click)="toggleItem(item)"
-          [class.expanded]="item.expanded"
-        >
-          <span [appHighlight]="currentSearchTerm" 
-                [accordionId]="item.id">
-            {{ item.heading }}
-          </span>
-          <span class="toggle-icon">{{ item.expanded ? '▼' : '►' }}</span>
-        </div>
-        
-        <div *ngIf="item.expanded" class="accordion-content">
-          <app-html-content 
-            [content]="item.data" 
-            [searchTerm]="currentSearchTerm"
-            [accordionId]="item.id">
-          </app-html-content>
-        </div>
-      </div>
-    </div>
-  `,
-  styleUrls: ['./component-a.component.scss']
+  imports: [CommonModule],
+  templateUrl: './component-a.component.html',
+  styleUrl: './component-a.component.css',
 })
-export class ComponentAComponent implements OnInit, OnDestroy {
-  items: AccordionItem[] = [];
-  private destroy$ = new Subject<void>();
-  currentSearchTerm = '';
+export class ComponentAComponent implements OnInit {
+  befits = [
+    {
+      id: 36,
+      heading: 'Sample',
+      data: `<div><p>This is sample paragraph. Search here for test.</p></div>`,
+      expanded: false,
+    },
+    {
+      id: 37,
+      heading: 'Test Accordion',
+      data: `<div><p>Another paragraph with searchable content and more text.</p></div>`,
+      expanded: false,
+    },
+  ];
 
-  constructor(private searchService: SearchService) {}
+  sanitizedHtml: SafeHtml[] = [];
+
+  constructor(
+    private searchService: SearchService,
+    private sanitizer: DomSanitizer
+  ) {}
 
   ngOnInit() {
-    // Simulate API response
-    this.items = [
-      {
-        id: '36',
-        heading: 'Sample Heading',
-        data: `<div class="tile_wrap d-flex align-items-stretch px-0 px-md-0 mb-2 g-2 g-md-4">
-                <div class="static_wrap d-flex flex-column flex-md-row justify-content-between p-3 px-md-4">
-                  <p>This is sample content with <strong>HTML elements</strong> and text to search.</p>
-                </div>
-              </div>`,
-        expanded: false
-      },
-      {
-        id: '37',
-        heading: 'Another Item',
-        data: `<div class="content">
-                <p>More content with different <em>formatting</em> and structure.</p>
-                <ul>
-                  <li>List item 1</li>
-                  <li>List item 2</li>
-                </ul>
-              </div>`,
-        expanded: false
-      }
-    ];
+    this.searchService.query$.subscribe((query) => {
+      this.sanitizedHtml = [];
+      const allMatches: HTMLElement[] = [];
 
-    this.searchService.searchTerm$.pipe(
-      takeUntil(this.destroy$)
-    ).subscribe(term => {
-      this.currentSearchTerm = term;
-      if (term) {
-        this.updateAccordions(term);
-      } else {
-        // Reset accordions when search is cleared
-        this.items.forEach(item => item.expanded = false);
-      }
-    });
-    
-    this.searchService.accordionStates$.pipe(
-      takeUntil(this.destroy$)
-    ).subscribe(states => {
-      this.items.forEach(item => {
-        const state = states.get(item.id);
-        if (state !== undefined) {
-          item.expanded = state;
+      this.befits.forEach((item, index) => {
+        const regex = new RegExp(`(${query})`, 'gi');
+        item.expanded = false;
+        if (query && (item.data + item.heading).match(regex)) {
+          item.expanded = true;
         }
+
+        const highlighted = item.data.replace(regex, `<mark class="highlight">$1</mark>`);
+        this.sanitizedHtml[index] = this.sanitizer.bypassSecurityTrustHtml(highlighted);
+      });
+
+      setTimeout(() => {
+        const matches = Array.from(document.querySelectorAll('.highlight')) as HTMLElement[];
+        this.searchService.registerMatches(matches);
       });
     });
-  }
-
-  toggleItem(item: AccordionItem) {
-    if (!this.currentSearchTerm) {
-      item.expanded = !item.expanded;
-      this.searchService.setAccordionState(item.id, item.expanded);
-    }
-  }
-
-  private updateAccordions(term: string) {
-    const searchTerm = term.toLowerCase();
-    
-    this.items.forEach(item => {
-      // Create text-only version for matching
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = item.data;
-      const textContent = tempDiv.textContent || '';
-      
-      const hasMatch = item.heading.toLowerCase().includes(searchTerm) || 
-                      textContent.toLowerCase().includes(searchTerm);
-      
-      this.searchService.setAccordionState(item.id, hasMatch);
-    });
-  }
-
-  ngOnDestroy() {
-    this.destroy$.next();
-    this.destroy$.complete();
   }
 }
