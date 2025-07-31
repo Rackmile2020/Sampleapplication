@@ -1,23 +1,42 @@
-import { Directive, ElementRef, Input, Renderer2, OnChanges, SimpleChanges, OnDestroy } from '@angular/core';
+import { 
+  Directive, ElementRef, Input, OnChanges, 
+  SimpleChanges, Renderer2, OnDestroy, OnInit 
+} from '@angular/core';
 import { SearchService } from '../services/search.service';
 
 @Directive({
   selector: '[appHighlight]',
   standalone: true
 })
-export class HighlightDirective implements OnChanges, OnDestroy {
+export class HighlightDirective implements OnInit, OnChanges, OnDestroy {
   @Input() appHighlight = '';
   @Input() accordionId?: string;
-  private originalHTML = '';
+  private originalContent = '';
   private matches: HTMLElement[] = [];
+  private observer?: MutationObserver;
 
   constructor(
     private el: ElementRef,
     private renderer: Renderer2,
     private searchService: SearchService
-  ) {
-    // Store original HTML content
-    this.originalHTML = this.el.nativeElement.innerHTML;
+  ) {}
+
+  ngOnInit() {
+    // Store original content
+    this.originalContent = this.el.nativeElement.innerHTML;
+    
+    // Set up mutation observer to track content changes
+    this.observer = new MutationObserver(() => {
+      if (!this.appHighlight) {
+        this.originalContent = this.el.nativeElement.innerHTML;
+      }
+    });
+    
+    this.observer.observe(this.el.nativeElement, {
+      childList: true,
+      subtree: true,
+      characterData: true
+    });
   }
 
   ngOnChanges(changes: SimpleChanges) {
@@ -27,48 +46,44 @@ export class HighlightDirective implements OnChanges, OnDestroy {
   }
 
   highlight(term: string) {
-    // Clear previous highlights
     this.clearHighlights();
     
     if (!term) {
       // Restore original content
-      this.renderer.setProperty(this.el.nativeElement, 'innerHTML', this.originalHTML);
+      this.renderer.setProperty(this.el.nativeElement, 'innerHTML', this.originalContent);
       return;
     }
 
-    // Get text content for matching
-    const textContent = this.el.nativeElement.textContent || '';
+    // Get current content (could be static text or HTML)
+    const currentContent = this.originalContent;
     const regex = new RegExp(this.escapeRegex(term), 'gi');
-    let match;
-    let lastIndex = 0;
-    let newHTML = '';
-
-    // Create a temporary div to preserve HTML structure
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = this.originalHTML;
+    
+    // Create temporary container
+    const tempDiv = this.renderer.createElement('div');
+    this.renderer.setProperty(tempDiv, 'innerHTML', currentContent);
     
     // Process all text nodes
-    this.processNode(tempDiv, regex);
+    this.processTextNodes(tempDiv, regex);
     
-    // Update DOM with highlighted content
+    // Update element with highlighted content
     this.renderer.setProperty(this.el.nativeElement, 'innerHTML', tempDiv.innerHTML);
-
+    
     // Register matches
     this.matches = Array.from(this.el.nativeElement.querySelectorAll('.search-highlight'));
     this.matches.forEach(el => {
       if (this.accordionId) {
-        el.setAttribute('data-accordion-id', this.accordionId);
+        this.renderer.setAttribute(el, 'data-accordion-id', this.accordionId);
       }
       this.searchService.registerMatch(el);
     });
   }
 
-  private processNode(node: Node, regex: RegExp) {
+  private processTextNodes(node: Node, regex: RegExp) {
     if (node.nodeType === Node.TEXT_NODE) {
       this.processTextNode(node, regex);
     } else if (node.nodeType === Node.ELEMENT_NODE) {
       for (let i = 0; i < node.childNodes.length; i++) {
-        this.processNode(node.childNodes[i], regex);
+        this.processTextNodes(node.childNodes[i], regex);
       }
     }
   }
@@ -119,11 +134,17 @@ export class HighlightDirective implements OnChanges, OnDestroy {
   }
 
   clearHighlights() {
-    this.renderer.setProperty(this.el.nativeElement, 'innerHTML', this.originalHTML);
+    // Clear any existing highlights
+    if (this.originalContent) {
+      this.renderer.setProperty(this.el.nativeElement, 'innerHTML', this.originalContent);
+    }
     this.matches = [];
   }
 
   ngOnDestroy() {
+    if (this.observer) {
+      this.observer.disconnect();
+    }
     this.clearHighlights();
   }
 }
