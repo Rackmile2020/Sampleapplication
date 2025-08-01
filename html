@@ -27,3 +27,11 @@ this.searchService.query$.subscribe(query => {
       this.searchService.registerMatches(matches);
     });
   }
+.current-highlight {
+  background-color: orange !important; /* overrides highlight */
+  color: white;
+  font-weight: bold;
+  scroll-margin-top: 60px; /* optional: centers match when scrolled */
+  border-radius: 4px;
+  padding: 2px 4px;
+}
