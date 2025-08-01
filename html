@@ -5,3 +5,25 @@
   <span>{{ countText }}</span>
   <button (click)="clearSearch()">✕</button>
 </div>
+this.searchService.query$.subscribe(query => {
+      const regex = new RegExp(`(${query})`, 'gi');
+      const elements = Array.from(document.querySelectorAll('.static-text')) as HTMLElement[];
+
+      const matches: HTMLElement[] = [];
+
+      elements.forEach(el => {
+        const original = el.textContent || '';
+        if (query && original.match(regex)) {
+          el.innerHTML = original.replace(regex, '<mark class="highlight">$1</mark>');
+        } else {
+          el.innerHTML = original; // Reset if no match
+        }
+
+        // Collect all highlights inside this element
+        const innerMatches = Array.from(el.querySelectorAll('.highlight')) as HTMLElement[];
+        matches.push(...innerMatches);
+      });
+
+      this.searchService.registerMatches(matches);
+    });
+  }
