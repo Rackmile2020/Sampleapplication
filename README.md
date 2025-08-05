@@ -1,13 +1,16 @@
-function getValueByKeyInsensitive(data: any[], inputKey: string): string | null {
-  const lowerKey = inputKey.toLowerCase();
 
-  for (const obj of data) {
-    for (const key of Object.keys(obj)) {
-      if (key.toLowerCase() === lowerKey) {
-        return obj[key].value;
-      }
-    }
-  }
-
-  return null;
-}
+export const appConfig: ApplicationConfig = {
+  providers: [
+    provideRouter([...]),
+    {
+      provide: 'APP_INITIALIZER',
+      useFactory: (router: Router) => () => {
+        router.events.subscribe(() => {
+          cleanupBootstrapModals();
+        });
+      },
+      deps: [Router],
+      multi: true
+    }
+  ]
+};
