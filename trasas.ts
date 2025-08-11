@@ -1,62 +1,68 @@
-import { RouteReuseStrategy, DetachedRouteHandle, ActivatedRouteSnapshot } from '@angular/router';
+import { ActivatedRouteSnapshot, DetachedRouteHandle, RouteReuseStrategy } from '@angular/router';
 
 export class CustomReuseStrategy implements RouteReuseStrategy {
   private storedHandles = new Map<string, DetachedRouteHandle>();
 
-  // Decide if we should detach (cache) the route
-  shouldDetach(route: ActivatedRouteSnapshot): boolean {
-    return this.isCoverageRoute(route); // Only cache Coverage routes
+  // Create a unique cache key based on route path + params (especially `id`)
+  private getKey(route: ActivatedRouteSnapshot): string {
+    const id = route.paramMap.get('id') || '';
+    return `${route.routeConfig?.path || ''}_${id}`;
   }
 
-  // Store the detached route
+  // 1️⃣ Decide if this route should be stored
+  shouldDetach(route: ActivatedRouteSnapshot): boolean {
+    // Case 1: Routes with `reuse: true` in data → Always cache
+    if (route.data && route.data['reuse'] === true) {
+      return true;
+    }
+
+    // Case 2: Mycoverage route caching based on id
+    if (this.isMyCoverageRoute(route)) {
+      return true; // We’ll handle reload prevention in shouldAttach
+    }
+
+    // Case 3: Everything else → No caching
+    return false;
+  }
+
   store(route: ActivatedRouteSnapshot, handle: DetachedRouteHandle): void {
-    const key = this.getRouteKey(route);
+    const key = this.getKey(route);
     this.storedHandles.set(key, handle);
   }
 
-  // Decide if we should reattach a stored route
+  // 2️⃣ Decide if this route can be re-attached from cache
   shouldAttach(route: ActivatedRouteSnapshot): boolean {
-    return this.isCoverageRoute(route) && this.storedHandles.has(this.getRouteKey(route));
+    // Always restore if reuse=true
+    if (route.data && route.data['reuse'] === true) {
+      return this.storedHandles.has(this.getKey(route));
+    }
+
+    // Mycoverage: Only restore if same id exists in cache
+    if (this.isMyCoverageRoute(route)) {
+      return this.storedHandles.has(this.getKey(route));
+    }
+
+    return false;
   }
 
-  // Retrieve a stored route
   retrieve(route: ActivatedRouteSnapshot): DetachedRouteHandle | null {
-    if (!this.isCoverageRoute(route)) {
-      return null; // No reuse for other routes
-    }
-    return this.storedHandles.get(this.getRouteKey(route)) || null;
+    if (!route.routeConfig) return null;
+    return this.storedHandles.get(this.getKey(route)) || null;
   }
 
-  // Decide if the same route should be reused without detaching
+  // 3️⃣ Compare for reuse
   shouldReuseRoute(future: ActivatedRouteSnapshot, curr: ActivatedRouteSnapshot): boolean {
-    if (future.routeConfig !== curr.routeConfig) {
-      return false;
+    // If Mycoverage → reload only when ID changes
+    if (this.isMyCoverageRoute(future) && this.isMyCoverageRoute(curr)) {
+      return future.paramMap.get('id') === curr.paramMap.get('id');
     }
 
-    const futureId = future.params['id'];
-    const currId = curr.params['id'];
-
-    // If it's a Coverage route with different id → reload
-    if (this.isCoverageRoute(future) && futureId && currId && futureId !== currId) {
-      return false;
-    }
-
-    return true;
+    // Default Angular behavior
+    return future.routeConfig === curr.routeConfig;
   }
 
-  // Check if route is part of /Coverage
-  private isCoverageRoute(route: ActivatedRouteSnapshot): boolean {
-    return route.pathFromRoot.some(r => r.routeConfig?.path?.startsWith('Coverage'));
-  }
-
-  // Build a unique key for a route, including id param if present
-  private getRouteKey(route: ActivatedRouteSnapshot): string {
-    const path = route.pathFromRoot
-      .map(r => r.routeConfig?.path || '')
-      .filter(p => !!p)
-      .join('/');
-
-    const id = route.params['id'] || '';
-    return `${path}_${id}`;
+  private isMyCoverageRoute(route: ActivatedRouteSnapshot): boolean {
+    const path = route.routeConfig?.path || '';
+    return path.startsWith('Coverage/:id/medical');
   }
 }
