@@ -1,30 +1,34 @@
 import { RouteReuseStrategy, DetachedRouteHandle, ActivatedRouteSnapshot } from '@angular/router';
 
 export class CustomReuseStrategy implements RouteReuseStrategy {
-  storedHandles = new Map<string, DetachedRouteHandle>();
+  private storedHandles = new Map<string, DetachedRouteHandle>();
 
+  // Decide if we should detach (cache) the route
   shouldDetach(route: ActivatedRouteSnapshot): boolean {
-    // Only detach (cache) routes under Coverage
-    return this.isCoverageRoute(route);
+    return this.isCoverageRoute(route); // Only cache Coverage routes
   }
 
+  // Store the detached route
   store(route: ActivatedRouteSnapshot, handle: DetachedRouteHandle): void {
     const key = this.getRouteKey(route);
     this.storedHandles.set(key, handle);
   }
 
+  // Decide if we should reattach a stored route
   shouldAttach(route: ActivatedRouteSnapshot): boolean {
-    const key = this.getRouteKey(route);
-    return this.storedHandles.has(key);
+    return this.isCoverageRoute(route) && this.storedHandles.has(this.getRouteKey(route));
   }
 
+  // Retrieve a stored route
   retrieve(route: ActivatedRouteSnapshot): DetachedRouteHandle | null {
-    const key = this.getRouteKey(route);
-    return this.storedHandles.get(key) || null;
+    if (!this.isCoverageRoute(route)) {
+      return null; // No reuse for other routes
+    }
+    return this.storedHandles.get(this.getRouteKey(route)) || null;
   }
 
+  // Decide if the same route should be reused without detaching
   shouldReuseRoute(future: ActivatedRouteSnapshot, curr: ActivatedRouteSnapshot): boolean {
-    // reuse if route config is same AND id param matches
     if (future.routeConfig !== curr.routeConfig) {
       return false;
     }
@@ -32,19 +36,21 @@ export class CustomReuseStrategy implements RouteReuseStrategy {
     const futureId = future.params['id'];
     const currId = curr.params['id'];
 
-    if (futureId && currId && futureId !== currId) {
-      return false; // different id → don't reuse
+    // If it's a Coverage route with different id → reload
+    if (this.isCoverageRoute(future) && futureId && currId && futureId !== currId) {
+      return false;
     }
 
     return true;
   }
 
+  // Check if route is part of /Coverage
   private isCoverageRoute(route: ActivatedRouteSnapshot): boolean {
     return route.pathFromRoot.some(r => r.routeConfig?.path?.startsWith('Coverage'));
   }
 
+  // Build a unique key for a route, including id param if present
   private getRouteKey(route: ActivatedRouteSnapshot): string {
-    // key based on full route path + id param
     const path = route.pathFromRoot
       .map(r => r.routeConfig?.path || '')
       .filter(p => !!p)
