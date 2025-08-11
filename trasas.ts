@@ -1,68 +1,77 @@
-import { ActivatedRouteSnapshot, DetachedRouteHandle, RouteReuseStrategy } from '@angular/router';
+import { RouteReuseStrategy, DetachedRouteHandle, ActivatedRouteSnapshot } from '@angular/router';
 
 export class CustomReuseStrategy implements RouteReuseStrategy {
   private storedHandles = new Map<string, DetachedRouteHandle>();
 
-  // Create a unique cache key based on route path + params (especially `id`)
-  private getKey(route: ActivatedRouteSnapshot): string {
-    const id = route.paramMap.get('id') || '';
-    return `${route.routeConfig?.path || ''}_${id}`;
-  }
-
-  // 1️⃣ Decide if this route should be stored
   shouldDetach(route: ActivatedRouteSnapshot): boolean {
-    // Case 1: Routes with `reuse: true` in data → Always cache
+    // 3. Always reuse if route.data.reuse === true
     if (route.data && route.data['reuse'] === true) {
       return true;
     }
 
-    // Case 2: Mycoverage route caching based on id
-    if (this.isMyCoverageRoute(route)) {
-      return true; // We’ll handle reload prevention in shouldAttach
-    }
-
-    // Case 3: Everything else → No caching
-    return false;
+    // 1 & 2. Only cache Coverage routes using existing logic
+    return this.isCoverageRoute(route);
   }
 
   store(route: ActivatedRouteSnapshot, handle: DetachedRouteHandle): void {
-    const key = this.getKey(route);
+    const key = this.getRouteKey(route);
     this.storedHandles.set(key, handle);
   }
 
-  // 2️⃣ Decide if this route can be re-attached from cache
   shouldAttach(route: ActivatedRouteSnapshot): boolean {
-    // Always restore if reuse=true
     if (route.data && route.data['reuse'] === true) {
-      return this.storedHandles.has(this.getKey(route));
+      const key = this.getRouteKey(route);
+      return this.storedHandles.has(key);
     }
 
-    // Mycoverage: Only restore if same id exists in cache
-    if (this.isMyCoverageRoute(route)) {
-      return this.storedHandles.has(this.getKey(route));
-    }
-
-    return false;
+    return this.isCoverageRoute(route) && this.storedHandles.has(this.getRouteKey(route));
   }
 
   retrieve(route: ActivatedRouteSnapshot): DetachedRouteHandle | null {
-    if (!route.routeConfig) return null;
-    return this.storedHandles.get(this.getKey(route)) || null;
-  }
-
-  // 3️⃣ Compare for reuse
-  shouldReuseRoute(future: ActivatedRouteSnapshot, curr: ActivatedRouteSnapshot): boolean {
-    // If Mycoverage → reload only when ID changes
-    if (this.isMyCoverageRoute(future) && this.isMyCoverageRoute(curr)) {
-      return future.paramMap.get('id') === curr.paramMap.get('id');
+    if (route.data && route.data['reuse'] === true) {
+      const key = this.getRouteKey(route);
+      return this.storedHandles.get(key) || null;
     }
 
-    // Default Angular behavior
-    return future.routeConfig === curr.routeConfig;
+    if (!this.isCoverageRoute(route)) {
+      return null;
+    }
+
+    return this.storedHandles.get(this.getRouteKey(route)) || null;
   }
 
-  private isMyCoverageRoute(route: ActivatedRouteSnapshot): boolean {
-    const path = route.routeConfig?.path || '';
-    return path.startsWith('Coverage/:id/medical');
+  shouldReuseRoute(future: ActivatedRouteSnapshot, curr: ActivatedRouteSnapshot): boolean {
+    if (future.routeConfig !== curr.routeConfig) {
+      return false;
+    }
+
+    // 3. Always reuse if route.data.reuse === true
+    if (future.data && future.data['reuse'] === true) {
+      return true;
+    }
+
+    // 2. For Coverage routes, reload if id param changes
+    const futureId = future.params['id'];
+    const currId = curr.params['id'];
+
+    if (this.isCoverageRoute(future) && futureId && currId && futureId !== currId) {
+      return false;
+    }
+
+    return true;
+  }
+
+  private isCoverageRoute(route: ActivatedRouteSnapshot): boolean {
+    return route.pathFromRoot.some(r => r.routeConfig?.path?.startsWith('Coverage'));
+  }
+
+  private getRouteKey(route: ActivatedRouteSnapshot): string {
+    const path = route.pathFromRoot
+      .map(r => r.routeConfig?.path || '')
+      .filter(Boolean)
+      .join('/');
+
+    const id = route.params['id'] || '';
+    return `${path}_${id}`;
   }
 }
