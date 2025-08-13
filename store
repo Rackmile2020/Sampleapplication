@@ -51,3 +51,9 @@ export class ChildComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 }
+
+this.parentStore.getSlice<any>('user')
+  .pipe(
+    distinctUntilChanged((prev, curr) => JSON.stringify(prev) === JSON.stringify(curr)),
+    takeUntil(this.destroy$)
+  )
