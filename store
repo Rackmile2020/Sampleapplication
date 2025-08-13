@@ -1,0 +1,24 @@
+import { Injectable } from '@angular/core';
+import { Store } from '@ngrx/store';
+import { Observable } from 'rxjs';
+import { map, shareReplay } from 'rxjs/operators';
+
+@Injectable({ providedIn: 'root' })
+export class ParentStoreService {
+  // Shared observable for the full store
+  private rawStore$ = this.store.select(state => state).pipe(
+    shareReplay(1) // share the latest value with all subscribers
+  );
+
+  constructor(private store: Store<any>) {}
+
+  getSlice<T>(sliceKey: string): Observable<T> {
+    return this.rawStore$.pipe(
+      map(state => state[sliceKey])
+    );
+  }
+
+  getRawStore(): Observable<any> {
+    return this.rawStore$;
+  }
+}
