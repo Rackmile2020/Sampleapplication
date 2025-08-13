@@ -77,3 +77,15 @@ export class CustomReuseStrategy implements RouteReuseStrategy {
     return `${basePath}_${id}`;
   }
 }
+
+private getRouteId(route: ActivatedRouteSnapshot): string | null {
+  let current: ActivatedRouteSnapshot | null = route;
+  while (current) {
+    const id = current.paramMap.get('id');
+    if (id) {
+      return id;
+    }
+    current = current.parent; // go up to parent route
+  }
+  return null; // not found
+}
