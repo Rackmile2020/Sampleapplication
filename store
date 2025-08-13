@@ -6,19 +6,48 @@ import { map, shareReplay } from 'rxjs/operators';
 @Injectable({ providedIn: 'root' })
 export class ParentStoreService {
   // Shared observable for the full store
-  private rawStore$ = this.store.select(state => state).pipe(
-    shareReplay(1) // share the latest value with all subscribers
-  );
+  private rawStore$: Observable<any>;
 
-  constructor(private store: Store<any>) {}
+  constructor(private store: Store<any>) {
+    // Initialize safely in constructor
+    this.rawStore$ = this.store.select(state => state).pipe(
+      shareReplay({ bufferSize: 1, refCount: true }) // share latest value among all subscribers
+    );
+  }
 
+  /**
+   * Get the full raw store as observable
+   */
+  getRawStore(): Observable<any> {
+    return this.rawStore$;
+  }
+
+  /**
+   * Get a specific slice of the store by key
+   * Example: getSlice<User>('user')
+   */
   getSlice<T>(sliceKey: string): Observable<T> {
     return this.rawStore$.pipe(
       map(state => state[sliceKey])
     );
   }
+}
+export class ChildComponent implements OnInit, OnDestroy {
+  private destroy$ = new Subject<void>();
 
-  getRawStore(): Observable<any> {
-    return this.rawStore$;
+  user$ = this.parentStore.getSlice<any>('user'); // slice as observable
+
+  constructor(private parentStore: ParentStoreService) {}
+
+  ngOnInit() {
+    // Example: subscribe to full store if needed
+    this.parentStore.getRawStore()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(store => console.log('Full parent store:', store));
+  }
+
+  ngOnDestroy() {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 }
