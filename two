@@ -1,0 +1,58 @@
+@Injectable({ providedIn: 'root' })
+export class DataBridgeService {
+  private parentService: any;
+  private cache = new Map<string, BehaviorSubject<any>>();
+
+  constructor(private injector: Injector) {}
+
+  async init() {
+    if (this.parentService) return;
+
+    const m = await loadRemoteModule({
+      type: 'module',
+      remoteEntry: 'http://localhost:4200/remoteEntry.js', // Parent's remote
+      exposedModule: './ShareStoreDataService'
+    });
+
+    const serviceClass = m.ShareStoreDataService;
+    this.parentService = this.injector.get(serviceClass);
+  }
+
+  call(methodName: string, ...args: any[]) {
+    return this.parentService?.[methodName]?.(...args);
+  }
+
+  stream(methodName: string) {
+    if (!this.cache.has(methodName)) {
+      const subj = new BehaviorSubject<any>(null);
+      this.parentService[methodName]().subscribe((data: any) => subj.next(data));
+      this.cache.set(methodName, subj);
+    }
+    return this.cache.get(methodName)!.asObservable();
+  }
+
+  /**
+   * Subscribe to an observable method first, then call a trigger method.
+   * @param streamMethod Observable method to subscribe to (e.g. 'loadMemberShipResponse$')
+   * @param triggerMethod Method to call after subscribing (e.g. 'requestloadMembershipShared')
+   * @param streamCallback Function that handles emitted values
+   */
+  auto(streamMethod: string, triggerMethod: string, streamCallback: (data: any) => void) {
+    this.stream(streamMethod).subscribe(streamCallback);
+    this.call(triggerMethod);
+  }
+}
+async ngOnInit() {
+  await this.bridge.init();
+
+  // One line to subscribe first, then trigger
+  this.bridge.auto(
+    'loadMemberShipResponse$',
+    'requestloadMembershipShared',
+    data => {
+      if (data) {
+        console.log('Got data safely:', data);
+      }
+    }
+  );
+}
