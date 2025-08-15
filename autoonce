@@ -11,3 +11,24 @@ autoOnceMany(
 
   triggers.forEach(([name, ...args]) => this.call(name, ...args));
 }
+autoOnceMany(
+  streams: (string | any[])[],       // ['name'] or ['name', arg1, arg2]
+  triggers: (string | any[])[],      // same pattern for triggers
+  callback: (...data: any[]) => void
+) {
+  const normalize = (item: any) => Array.isArray(item) ? item : [item];
+
+  const stream$ = combineLatest(
+    streams.map(s => {
+      const [name, ...args] = normalize(s);
+      return this.stream(name, ...args);
+    })
+  );
+
+  stream$.subscribe(values => callback(...values));
+
+  triggers.forEach(t => {
+    const [name, ...args] = normalize(t);
+    this.call(name, ...args);
+  });
+}
