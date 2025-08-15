@@ -1,0 +1,40 @@
+// child/src/app/guards/eligibility.guard.ts
+import { Injectable, Injector } from '@angular/core';
+import { CanActivateChild, ActivatedRouteSnapshot, RouterStateSnapshot, Router } from '@angular/router';
+import { loadRemoteModule } from '@angular-architects/module-federation';
+import { Observable, from, map, switchMap } from 'rxjs';
+
+@Injectable({ providedIn: 'root' })
+export class EligibilityGuard implements CanActivateChild {
+  private authService: any;
+
+  constructor(private injector: Injector, private router: Router) {}
+
+  private async getAuthService() {
+    if (!this.authService) {
+      const m = await loadRemoteModule({
+        type: 'module',
+        remoteEntry: 'http://localhost:4200/remoteEntry.js', // parent remoteEntry
+        exposedModule: './AuthService',
+      });
+      const serviceClass = m.AuthService;
+      this.authService = this.injector.get(serviceClass);
+    }
+    return this.authService;
+  }
+
+  canActivateChild(route: ActivatedRouteSnapshot, state: RouterStateSnapshot): Observable<boolean> {
+    const memberId = route.parent?.paramMap.get('id');
+
+    return from(this.getAuthService()).pipe(
+      switchMap((svc: any) => svc.isEligible(memberId)),
+      map((eligible: boolean) => {
+        if (!eligible) {
+          this.router.navigate(['/home']);
+          return false;
+        }
+        return true;
+      })
+    );
+  }
+}
