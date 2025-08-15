@@ -1,3 +1,4 @@
+
 autoOnceMany(
   streams: [string, ...any[]][],  // e.g. [['loadMemberShipResponse$', 'US'], ['loadUserResponse$', 123]]
   triggers: [string, ...any[]][], // e.g. [['requestloadMembershipShared', { region: 'US' }], ['requestLoadUserShared', { userId: 123 }]]
@@ -31,4 +32,20 @@ autoOnceMany(
     const [name, ...args] = normalize(t);
     this.call(name, ...args);
   });
+}
+autoOnceMany(
+  streams: [string, ...any[]][],                // e.g. ['loadMemberShipResponse$', 'US']
+  triggers: [string, ...any[]][],               // e.g. ['requestloadMembershipShared', { region: 'US' }]
+  callback: (...results: any[]) => void
+) {
+  // Convert each stream entry into an observable
+  const observables = streams.map(([name, ...args]) =>
+    this.stream(name, ...args).pipe(take(1)) // take only first non-null emission
+  );
+
+  // Subscribe to all at once
+  combineLatest(observables).subscribe(values => callback(...values));
+
+  // Trigger each one
+  triggers.forEach(([name, ...args]) => this.call(name, ...args));
 }
