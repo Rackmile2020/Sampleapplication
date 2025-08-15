@@ -1,0 +1,51 @@
+autoOnce(
+  streamMethod: string,
+  streamArgs: any[] | ((data: any) => void),
+  triggerMethod?: string | any[],
+  triggerArgs?: any[] | ((data: any) => void),
+  callback?: (data: any) => void
+) {
+  let sArgs: any[] = [];
+  let tMethod: string | undefined;
+  let tArgs: any[] = [];
+  let cb: (data: any) => void;
+
+  // Figure out which arguments are what
+  if (typeof streamArgs === 'function') {
+    // autoOnce('streamMethod', callback)
+    cb = streamArgs;
+  }
+  else if (Array.isArray(streamArgs)) {
+    sArgs = streamArgs;
+
+    if (typeof triggerMethod === 'function') {
+      // autoOnce('streamMethod', [args], callback)
+      cb = triggerMethod;
+    }
+    else if (typeof triggerMethod === 'string') {
+      tMethod = triggerMethod;
+
+      if (typeof triggerArgs === 'function') {
+        // autoOnce('streamMethod', [args], 'triggerMethod', callback)
+        cb = triggerArgs;
+      }
+      else if (Array.isArray(triggerArgs)) {
+        tArgs = triggerArgs;
+        cb = callback!;
+      }
+    }
+  }
+
+  // Subscribe to the stream
+  this.stream(streamMethod, ...sArgs)
+    .pipe(
+      filter(v => v != null), // ignore nulls
+      take(1)                 // only first valid emission
+    )
+    .subscribe(cb);
+
+  // Trigger the method if provided
+  if (tMethod) {
+    this.call(tMethod, ...tArgs);
+  }
+}
