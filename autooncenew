@@ -1,51 +1,35 @@
 autoOnce(
   streamMethod: string,
-  streamArgs: any[] | ((data: any) => void),
-  triggerMethod?: string | any[],
-  triggerArgs?: any[] | ((data: any) => void),
+  streamArgsOrTriggerMethod: string | any[],
+  triggerMethodOrCallback: string | ((data: any) => void),
+  triggerArgsOrCallback?: any[] | ((data: any) => void),
   callback?: (data: any) => void
 ) {
-  let sArgs: any[] = [];
-  let tMethod: string | undefined;
-  let tArgs: any[] = [];
+  let streamArgs: any[] = [];
+  let triggerMethod: string;
+  let triggerArgs: any[] = [];
   let cb: (data: any) => void;
 
-  // Figure out which arguments are what
-  if (typeof streamArgs === 'function') {
-    // autoOnce('streamMethod', callback)
-    cb = streamArgs;
+  // No-args form
+  if (typeof streamArgsOrTriggerMethod === 'string' && typeof triggerMethodOrCallback === 'function') {
+    triggerMethod = streamArgsOrTriggerMethod;
+    cb = triggerMethodOrCallback;
   }
-  else if (Array.isArray(streamArgs)) {
-    sArgs = streamArgs;
+  // With args form
+  else if (Array.isArray(streamArgsOrTriggerMethod) && typeof triggerMethodOrCallback === 'string') {
+    streamArgs = streamArgsOrTriggerMethod;
+    triggerMethod = triggerMethodOrCallback;
 
-    if (typeof triggerMethod === 'function') {
-      // autoOnce('streamMethod', [args], callback)
-      cb = triggerMethod;
+    if (typeof triggerArgsOrCallback === 'function') {
+      cb = triggerArgsOrCallback;
+    } else {
+      triggerArgs = triggerArgsOrCallback as any[];
+      cb = callback!;
     }
-    else if (typeof triggerMethod === 'string') {
-      tMethod = triggerMethod;
-
-      if (typeof triggerArgs === 'function') {
-        // autoOnce('streamMethod', [args], 'triggerMethod', callback)
-        cb = triggerArgs;
-      }
-      else if (Array.isArray(triggerArgs)) {
-        tArgs = triggerArgs;
-        cb = callback!;
-      }
-    }
+  } else {
+    throw new Error('Invalid autoOnce arguments');
   }
 
-  // Subscribe to the stream
-  this.stream(streamMethod, ...sArgs)
-    .pipe(
-      filter(v => v != null), // ignore nulls
-      take(1)                 // only first valid emission
-    )
-    .subscribe(cb);
-
-  // Trigger the method if provided
-  if (tMethod) {
-    this.call(tMethod, ...tArgs);
-  }
+  this.stream(streamMethod, ...streamArgs).subscribe(cb);
+  this.callOnce(triggerMethod, ...triggerArgs);
 }
