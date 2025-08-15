@@ -1,0 +1,13 @@
+autoOnceMany(
+  streams: [string, ...any[]][],  // e.g. [['loadMemberShipResponse$', 'US'], ['loadUserResponse$', 123]]
+  triggers: [string, ...any[]][], // e.g. [['requestloadMembershipShared', { region: 'US' }], ['requestLoadUserShared', { userId: 123 }]]
+  callback: (...data: any[]) => void
+) {
+  const stream$ = combineLatest(
+    streams.map(([name, ...args]) => this.stream(name, ...args))
+  );
+
+  stream$.subscribe(values => callback(...values));
+
+  triggers.forEach(([name, ...args]) => this.call(name, ...args));
+}
