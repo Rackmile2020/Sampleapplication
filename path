@@ -9,3 +9,8 @@ getFullPath(route: ActivatedRoute): any {
 
   return params;
 }
+  const url = this.route.snapshot.pathFromRoot
+    .map(r => r.snapshot.url.map(segment => segment.path).join('/'))
+    .join('/');
+    
+  console.log('Full URL path:', url);
