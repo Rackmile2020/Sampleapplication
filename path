@@ -1,16 +1,32 @@
-getFullPath(route: ActivatedRoute): any {
-  let params = { ...route.snapshot.params };
-  let parent = route.parent;
+interface FullRouteInfo {
+  fullPath: string;
+  allParams: { [key: string]: any };
+}
 
-  while (parent) {
-    params = { ...parent.snapshot.params, ...params };
-    parent = parent.parent;
+export function getFullPath(route: ActivatedRoute): FullRouteInfo {
+  let allParams: { [key: string]: any } = { ...route.snapshot.params };
+  let pathSegments: string[] = route.snapshot.url.map(s => s.path);
+
+  function traverseChildren(r: ActivatedRoute) {
+    if (r.firstChild) {
+      const child = r.firstChild;
+      allParams = { ...allParams, ...child.snapshot.params };
+      pathSegments.push(...child.snapshot.url.map(s => s.path));
+      traverseChildren(child); // recursive
+    }
   }
 
-  return params;
+  traverseChildren(route);
+
+  const fullPath = '/' + pathSegments.join('/');
+  return { fullPath, allParams };
 }
-  const url = this.route.snapshot.pathFromRoot
-    .map(r => r.snapshot.url.map(segment => segment.path).join('/'))
-    .join('/');
-    
-  console.log('Full URL path:', url);
+Usage:
+ts
+Copy
+Edit
+ngOnInit() {
+  const info = getFullPath(this.route);
+  console.log('Full URL path including children:', info.fullPath);
+  console.log('All merged params including children:', info.allParams);
+}
