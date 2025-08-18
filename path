@@ -1,32 +1,33 @@
-interface FullRouteInfo {
-  fullPath: string;
-  allParams: { [key: string]: any };
-}
-
-export function getFullPath(route: ActivatedRoute): FullRouteInfo {
-  let allParams: { [key: string]: any } = { ...route.snapshot.params };
-  let pathSegments: string[] = route.snapshot.url.map(s => s.path);
-
-  function traverseChildren(r: ActivatedRoute) {
+export function getFullPath$(route: ActivatedRoute): Observable<FullRouteInfo> {
+  function collectRoutes(r: ActivatedRoute): ActivatedRoute[] {
+    const all: ActivatedRoute[] = [r];
     if (r.firstChild) {
-      const child = r.firstChild;
-      allParams = { ...allParams, ...child.snapshot.params };
-      pathSegments.push(...child.snapshot.url.map(s => s.path));
-      traverseChildren(child); // recursive
+      all.push(...collectRoutes(r.firstChild));
     }
+    return all;
   }
 
-  traverseChildren(route);
-
-  const fullPath = '/' + pathSegments.join('/');
-  return { fullPath, allParams };
+  return combineLatest(
+    collectRoutes(route).map(r =>
+      combineLatest([r.paramMap, r.url]).pipe(
+        map(([paramMap, urlSegments]) => ({
+          params: Object.fromEntries(paramMap.keys.map(k => [k, paramMap.get(k)])),
+          segments: urlSegments.map((s: UrlSegment) => s.path)
+        }))
+      )
+    )
+  ).pipe(
+    map(results => {
+      const allParams = results.reduce((acc, r) => ({ ...acc, ...r.params }), {});
+      const fullPath = '/' + results.flatMap(r => r.segments).join('/');
+      return { fullPath, allParams };
+    })
+  );
 }
-Usage:
-ts
-Copy
-Edit
+
 ngOnInit() {
-  const info = getFullPath(this.route);
-  console.log('Full URL path including children:', info.fullPath);
-  console.log('All merged params including children:', info.allParams);
+  getFullPath$(this.route).subscribe(info => {
+    console.log('Reactive Full Path:', info.fullPath);
+    console.log('Reactive Params:', info.allParams);
+  });
 }
