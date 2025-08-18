@@ -74,6 +74,65 @@ export const selectMemberLoading = createSelector(
   selectMemberState,
   (state) => state.loading
 );
+// member.reducer.ts
+import { createReducer, on } from '@ngrx/store';
+import * as MemberActions from './member.actions';
+
+export interface MemberState {
+  entities: { [key: string]: any }; // cache keyed by request
+  loading: boolean;
+  error?: any;
+}
+
+export const initialState: MemberState = {
+  entities: {},
+  loading: false,
+  error: null
+};
+
+// Convert request object → string key
+function makeKey(request: any): string {
+  return JSON.stringify(request);
+}
+
+export const memberReducer = createReducer(
+  initialState,
+
+  on(MemberActions.loadMember, (state) => ({
+    ...state,
+    loading: true,
+    error: null
+  })),
+
+  on(MemberActions.loadMemberSuccess, (state, { request, data }) => ({
+    ...state,
+    loading: false,
+    entities: {
+      ...state.entities,
+      [makeKey(request)]: data   // cache result by request
+    }
+  })),
+
+  on(MemberActions.loadMemberFailure, (state, { error }) => ({
+    ...state,
+    loading: false,
+    error
+  }))
+);
+// member.selectors.ts
+import { createFeatureSelector, createSelector } from '@ngrx/store';
+import { MemberState } from './member.reducer';
+
+export const selectMemberState = createFeatureSelector<MemberState>('member');
+
+// Returns cached result if request is already in store
+export const selectMemberByRequest = (request: any) =>
+  createSelector(selectMemberState, (state) => state.entities[JSON.stringify(request)]);
+
+export const selectMemberLoading = createSelector(
+  selectMemberState,
+  (state) => state.loading
+);
 // member.effects.ts
 import { Injectable } from '@angular/core';
 import { Actions, createEffect, ofType } from '@ngrx/effects';
