@@ -1,0 +1,11 @@
+getFullPath(route: ActivatedRoute): any {
+  let params = { ...route.snapshot.params };
+  let parent = route.parent;
+
+  while (parent) {
+    params = { ...parent.snapshot.params, ...params };
+    parent = parent.parent;
+  }
+
+  return params;
+}
