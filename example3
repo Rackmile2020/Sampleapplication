@@ -1,23 +1,22 @@
-function hasData(value: any): boolean {
-  if (!value) return false; // null, undefined, '', 0, false
-  if (Array.isArray(value)) return value.length > 0;
-  if (typeof value === 'object') return Object.keys(value).length > 0;
-  return true;
-}
 @Injectable({ providedIn: 'root' })
 export class EligibilityGuard implements CanActivateChild {
-  constructor(private membershipFacade: MembershipFacade, private router: Router) {}
+  private authService: any;
 
-  canActivateChild(route: ActivatedRouteSnapshot): Observable<boolean> {
-    const memberId = route.parent?.paramMap.get('id')!;
-    return this.membershipFacade.getMembership(memberId).pipe(
-      map(data => {
-        if (!data.eligible) {
-          this.router.navigate(['/home']);
-          return false;
-        }
-        return true;
-      })
-    );
+  async loadAuth() {
+    if (!this.authService) {
+      const m = await loadRemoteModule({
+        type: 'module',
+        remoteEntry: 'http://localhost:4200/remoteEntry.js',
+        exposedModule: './AuthService'
+      });
+      this.authService = new m.AuthService();
+    }
+    return this.authService;
+  }
+
+  async canActivateChild(): Promise<boolean> {
+    const auth = await this.loadAuth();
+    const isEligible = await firstValueFrom(auth.checkEligibility());
+    return isEligible;
   }
 }
