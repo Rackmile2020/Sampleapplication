@@ -4,3 +4,20 @@ function hasData(value: any): boolean {
   if (typeof value === 'object') return Object.keys(value).length > 0;
   return true;
 }
+@Injectable({ providedIn: 'root' })
+export class EligibilityGuard implements CanActivateChild {
+  constructor(private membershipFacade: MembershipFacade, private router: Router) {}
+
+  canActivateChild(route: ActivatedRouteSnapshot): Observable<boolean> {
+    const memberId = route.parent?.paramMap.get('id')!;
+    return this.membershipFacade.getMembership(memberId).pipe(
+      map(data => {
+        if (!data.eligible) {
+          this.router.navigate(['/home']);
+          return false;
+        }
+        return true;
+      })
+    );
+  }
+}
