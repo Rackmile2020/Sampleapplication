@@ -1,22 +1,19 @@
-@Injectable({ providedIn: 'root' })
-export class EligibilityGuard implements CanActivateChild {
-  private authService: any;
-
-  async loadAuth() {
-    if (!this.authService) {
-      const m = await loadRemoteModule({
-        type: 'module',
-        remoteEntry: 'http://localhost:4200/remoteEntry.js',
-        exposedModule: './AuthService'
-      });
-      this.authService = new m.AuthService();
-    }
-    return this.authService;
-  }
-
-  async canActivateChild(): Promise<boolean> {
-    const auth = await this.loadAuth();
-    const isEligible = await firstValueFrom(auth.checkEligibility());
-    return isEligible;
-  }
+export async function loadEligibilityGuard() {
+  const m = await loadRemoteModule({
+    type: 'module',
+    remoteEntry: 'http://localhost:4200/remoteEntry.js', // parent MFE
+    exposedModule: './EligibilityGuard'
+  });
+  return m.EligibilityGuard;
 }
+
+// Proxy guard (Angular expects sync function, so we wrap async)
+export const eligibilityProxyGuard: CanActivateChildFn = async (route, state) => {
+  const GuardClass = await loadEligibilityGuard();
+  const router = inject(Router);
+
+  // instantiate guard (it was decorated with @Injectable in parent)
+  const guard = new GuardClass(router);
+
+  return guard.canActivateChild(route, state);
+};
