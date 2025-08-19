@@ -17,3 +17,10 @@ export const eligibilityProxyGuard: CanActivateChildFn = async (route, state) =>
 
   return guard.canActivateChild(route, state);
 };
+
+const guard = Injector.create({
+  providers: [
+    { provide: m.EligibilityGuard, useClass: m.EligibilityGuard }
+  ],
+  parent: rootInjector
+}).get(m.EligibilityGuard);
