@@ -1,26 +1,32 @@
-export async function loadEligibilityGuard() {
+// src/app/remote-guards.ts
+import { inject, Injector } from '@angular/core';
+import { CanActivateChildFn } from '@angular/router';
+import { loadRemoteModule } from '@angular-architects/module-federation';
+
+async function getEligibilityGuardInstance() {
   const m = await loadRemoteModule({
     type: 'module',
-    remoteEntry: 'http://localhost:4200/remoteEntry.js', // parent MFE
+    remoteEntry: 'http://localhost:4200/remoteEntry.js', // parent remote
     exposedModule: './EligibilityGuard'
   });
-  return m.EligibilityGuard;
+
+  const GuardClass = m.EligibilityGuard;
+
+  // Get current root injector (from running Angular app)
+  const rootInjector = inject(Injector);
+
+  // Create instance of guard with DI
+  const childInjector = Injector.create({
+    providers: [
+      { provide: GuardClass, useClass: GuardClass, deps: [] } // ✅ deps auto-resolved
+    ],
+    parent: rootInjector
+  });
+
+  return childInjector.get(GuardClass);
 }
 
-// Proxy guard (Angular expects sync function, so we wrap async)
 export const eligibilityProxyGuard: CanActivateChildFn = async (route, state) => {
-  const GuardClass = await loadEligibilityGuard();
-  const router = inject(Router);
-
-  // instantiate guard (it was decorated with @Injectable in parent)
-  const guard = new GuardClass(router);
-
+  const guard = await getEligibilityGuardInstance();
   return guard.canActivateChild(route, state);
 };
-
-const guard = Injector.create({
-  providers: [
-    { provide: m.EligibilityGuard, useClass: m.EligibilityGuard }
-  ],
-  parent: rootInjector
-}).get(m.EligibilityGuard);
