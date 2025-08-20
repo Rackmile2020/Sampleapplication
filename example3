@@ -15,36 +15,42 @@ export const loadMemberFailure = createAction(
   '[Member] Load Member Failure',
   props<{ error: any }>()
 );
+////////////////
 import { createReducer, on } from '@ngrx/store';
+import { createEntityAdapter, EntityState } from '@ngrx/entity';
 import * as MemberActions from './member.actions';
-import { Member } from './member.model';
 
-export interface MemberState {
-  members: { [id: string]: Member }; // cache by id
+export interface Member {
+  id: string;
+  name: string;
+  age: number;
+}
+
+export interface MemberState extends EntityState<Member> {
   loading: boolean;
   error: any;
 }
 
-export const initialState: MemberState = {
-  members: {},
+export const adapter = createEntityAdapter<Member>({
+  selectId: (member) => member.id
+});
+
+export const initialState: MemberState = adapter.getInitialState({
   loading: false,
-  error: null,
-};
+  error: null
+});
 
 export const memberReducer = createReducer(
   initialState,
 
   on(MemberActions.loadMember, (state) => ({
     ...state,
-    loading: true,
-    error: null,
+    loading: true
   })),
 
-  on(MemberActions.loadMemberSuccess, (state, { member }) => ({
-    ...state,
-    loading: false,
-    members: { ...state.members, [member.id]: member }
-  })),
+  on(MemberActions.loadMemberSuccess, (state, { member }) =>
+    adapter.upsertOne(member, { ...state, loading: false })
+  ),
 
   on(MemberActions.loadMemberFailure, (state, { error }) => ({
     ...state,
@@ -52,21 +58,30 @@ export const memberReducer = createReducer(
     error
   }))
 );
-import { createFeatureSelector, createSelector } from '@ngrx/store';
-import { MemberState } from './member.reducer';
+/////////////////////////////
+import { createSelector } from '@ngrx/store';
+import { adapter, MemberState } from './member.reducer';
 
-export const selectMemberState = createFeatureSelector<MemberState>('member');
+export const selectMemberState = (state: any) => state.members;
+
+const { selectEntities } = adapter.getSelectors();
+
+export const selectMemberEntities = createSelector(
+  selectMemberState,
+  selectEntities
+);
 
 export const selectMemberById = (memberId: string) =>
-  createSelector(selectMemberState, (state) => state.members[memberId]);
+  createSelector(selectMemberEntities, (entities) => entities[memberId]);
+//////////////////////////////
 import { Injectable } from '@angular/core';
-import { Actions, createEffect, ofType } from '@ngrx/effects';
+import { Actions, createEffect, ofType, concatLatestFrom } from '@ngrx/effects';
 import { Store } from '@ngrx/store';
 import { of } from 'rxjs';
-import { switchMap, map, catchError, withLatestFrom } from 'rxjs/operators';
+import { catchError, map, switchMap } from 'rxjs/operators';
 import * as MemberActions from './member.actions';
-import { MemberService } from './member.service';
 import { selectMemberById } from './member.selectors';
+import { MemberService } from '../services/member.service';
 
 @Injectable()
 export class MemberEffects {
@@ -79,16 +94,20 @@ export class MemberEffects {
   loadMember$ = createEffect(() =>
     this.actions$.pipe(
       ofType(MemberActions.loadMember),
-      withLatestFrom((action) => this.store.select(selectMemberById(action.memberId))),
-      switchMap(([action, cachedMember]) => {
-        if (cachedMember) {
-          // Already in store → just return success with cached data
-          return of(MemberActions.loadMemberSuccess({ member: cachedMember }));
+      concatLatestFrom((action) =>
+        this.store.select(selectMemberById(action.memberId))
+      ),
+      switchMap(([action, cached]) => {
+        if (cached) {
+          // ✅ already in store
+          return of(MemberActions.loadMemberSuccess({ member: cached }));
         } else {
-          // Not in store → fetch from API
+          // ✅ fetch from API
           return this.memberService.getMember(action.memberId).pipe(
             map((member) => MemberActions.loadMemberSuccess({ member })),
-            catchError((error) => of(MemberActions.loadMemberFailure({ error })))
+            catchError((error) =>
+              of(MemberActions.loadMemberFailure({ error }))
+            )
           );
         }
       })
