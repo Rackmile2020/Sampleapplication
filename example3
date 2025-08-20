@@ -1,5 +1,6 @@
 // member.actions.ts
 import { createAction, props } from '@ngrx/store';
+import { Member } from '../models/member.model';
 
 export const loadMember = createAction(
   '[Member] Load Member',
@@ -8,7 +9,7 @@ export const loadMember = createAction(
 
 export const loadMemberSuccess = createAction(
   '[Member] Load Member Success',
-  props<{ memberId: string; data: any }>()
+  props<{ member: Member }>()
 );
 
 export const loadMemberFailure = createAction(
@@ -18,48 +19,48 @@ export const loadMemberFailure = createAction(
 // member.reducer.ts
 import { createReducer, on } from '@ngrx/store';
 import * as MemberActions from './member.actions';
+import { Member } from '../models/member.model';
 
 export interface MemberState {
-  entities: { [id: string]: any };
+  member: Member | null;
   loading: boolean;
+  error: any;
 }
 
 export const initialState: MemberState = {
-  entities: {},
-  loading: false
+  member: null,
+  loading: false,
+  error: null
 };
-
 export const memberReducer = createReducer(
   initialState,
-  on(MemberActions.loadMember, (state) => ({
+
+  // Start loading
+  on(MemberActions.loadMember, (state, { memberId }) => ({
     ...state,
-    loading: true
+    loading: true,
+    error: null
   })),
-  on(MemberActions.loadMemberSuccess, (state, { memberId, data }) => ({
+
+  // Success
+  on(MemberActions.loadMemberSuccess, (state, { member }) => ({
+    ...state,
+    member,
+    loading: false,
+    error: null
+  })),
+
+  // Failure
+  on(MemberActions.loadMemberFailure, (state, { error }) => ({
     ...state,
     loading: false,
-    entities: {
-      ...state.entities,
-      [memberId]: data
-    }
-  })),
-  on(MemberActions.loadMemberFailure, (state) => ({
-    ...state,
-    loading: false
+    error
   }))
 );
-// member.selectors.ts
-import { createSelector, createFeatureSelector } from '@ngrx/store';
-import { MemberState } from './member.reducer';
-
-export const selectMemberState = createFeatureSelector<MemberState>('members');
-
-export const selectMemberById = (memberId: string) =>
-  createSelector(selectMemberState, (state: MemberState) => state.entities[memberId]);
 // member.effects.ts
 import { Injectable } from '@angular/core';
 import { Actions, createEffect, ofType } from '@ngrx/effects';
-import { MemberService } from '../member.service';
+import { MemberService } from '../services/member.service';
 import * as MemberActions from './member.actions';
 import { catchError, map, mergeMap, of } from 'rxjs';
 
@@ -70,12 +71,8 @@ export class MemberEffects {
       ofType(MemberActions.loadMember),
       mergeMap(({ memberId }) =>
         this.memberService.getMemberById(memberId).pipe(
-          map((data) =>
-            MemberActions.loadMemberSuccess({ memberId, data })
-          ),
-          catchError((error) =>
-            of(MemberActions.loadMemberFailure({ error }))
-          )
+          map(member => MemberActions.loadMemberSuccess({ member })),
+          catchError(error => of(MemberActions.loadMemberFailure({ error })))
         )
       )
     )
