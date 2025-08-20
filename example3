@@ -1,32 +1,20 @@
-// src/app/remote-guards.ts
-import { inject, Injector } from '@angular/core';
-import { CanActivateChildFn } from '@angular/router';
-import { loadRemoteModule } from '@angular-architects/module-federation';
 
-async function getEligibilityGuardInstance() {
-  const m = await loadRemoteModule({
-    type: 'module',
-    remoteEntry: 'http://localhost:4200/remoteEntry.js', // parent remote
-    exposedModule: './EligibilityGuard'
-  });
+export const LobMatchGuard: CanMatchFn = (
+  route: Route,
+  segments: UrlSegment[]
+) => {
+  // /Mycoverage/overview
+  if (segments.length >= 2 && segments[1]?.path === 'overview') {
+    return true;
+  }
 
-  const GuardClass = m.EligibilityGuard;
+  // /Mycoverage/:id/medical[/...]
+  const id = segments[1]?.path;
+  const lob = segments[2]?.path;
 
-  // Get current root injector (from running Angular app)
-  const rootInjector = inject(Injector);
+  if (id && lob === 'medical') {
+    return true;
+  }
 
-  // Create instance of guard with DI
-  const childInjector = Injector.create({
-    providers: [
-      { provide: GuardClass, useClass: GuardClass, deps: [] } // ✅ deps auto-resolved
-    ],
-    parent: rootInjector
-  });
-
-  return childInjector.get(GuardClass);
-}
-
-export const eligibilityProxyGuard: CanActivateChildFn = async (route, state) => {
-  const guard = await getEligibilityGuardInstance();
-  return guard.canActivateChild(route, state);
+  return false; // everything else (dental, vision) → parent
 };
