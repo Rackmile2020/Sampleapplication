@@ -12,9 +12,8 @@ export const LobMatchGuard: CanMatchFn = (
   const id = segments[1]?.path;
   const lob = segments[2]?.path;
 
-  if (id && lob === 'medical') {
-    return true;
-  }
-
+if (/^[0-9]+$/.test(id ?? '') && lob === 'medical') {
+  return true;
+}
   return false; // everything else (dental, vision) → parent
 };
