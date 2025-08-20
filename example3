@@ -1,100 +1,78 @@
 // member.reducer.ts
 import { createReducer, on } from '@ngrx/store';
-import * as MemberActions from './member.actions';
-
-export interface Member {
-  id: string;
-  name: string;
-  // ... other fields
-}
+import { loadMemberSuccess } from './member.actions';
 
 export interface MemberState {
-  entities: { [id: string]: Member };  // cache by id
-  loadingIds: string[];                // track loading per memberId
-  error?: string;
+  entities: { [memberId: string]: any }; // cache per memberId
 }
 
 export const initialState: MemberState = {
-  entities: {},
-  loadingIds: [],
-  error: undefined
+  entities: {}
 };
 
 export const memberReducer = createReducer(
   initialState,
-
-  // Start loading
-  on(MemberActions.loadMember, (state, { memberId }) => ({
+  on(loadMemberSuccess, (state, { memberId, data }) => ({
     ...state,
-    loadingIds: [...state.loadingIds, memberId]
-  })),
-
-  // Success
-  on(MemberActions.loadMemberSuccess, (state, { member }) => {
-    const { id } = member;
-    return {
-      ...state,
-      entities: {
-        ...state.entities,
-        [id]: member
-      },
-      loadingIds: state.loadingIds.filter(x => x !== id)
-    };
-  }),
-
-  // Failure
-  on(MemberActions.loadMemberFailure, (state, { memberId, error }) => ({
-    ...state,
-    loadingIds: state.loadingIds.filter(x => x !== memberId),
-    error
+    entities: {
+      ...state.entities,
+      [memberId]: data
+    }
   }))
 );
-///  
+//QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ
 // member.actions.ts
 import { createAction, props } from '@ngrx/store';
-import { Member } from './member.reducer';
 
 export const loadMember = createAction(
-  '[Member] Load Member',
+  '[Member] Load',
   props<{ memberId: string }>()
 );
 
 export const loadMemberSuccess = createAction(
-  '[Member] Load Member Success',
-  props<{ member: Member }>()
+  '[Member] Load Success',
+  props<{ memberId: string, data: any }>()
 );
+QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ
+// member.effects.ts
+import { Injectable } from '@angular/core';
+import { Actions, createEffect, ofType } from '@ngrx/effects';
+import { Store } from '@ngrx/store';
+import { loadMember, loadMemberSuccess } from './member.actions';
+import { switchMap, withLatestFrom, of, map } from 'rxjs';
+import { MemberService } from '../services/member.service';
+import { selectMemberById } from './member.selectors';
 
-export const loadMemberFailure = createAction(
-  '[Member] Load Member Failure',
-  props<{ memberId: string; error: any }>()
-);
-//
+@Injectable()
+export class MemberEffects {
+  loadMember$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(loadMember),
+      withLatestFrom((action) => this.store.select(selectMemberById(action.memberId))),
+      switchMap(([action, cached]) => {
+        if (cached) {
+          // Already in store → don’t call API
+          return of(loadMemberSuccess({ memberId: action.memberId, data: cached }));
+        }
+        // Call API if not cached
+        return this.memberService.getMember(action.memberId).pipe(
+          map(data => loadMemberSuccess({ memberId: action.memberId, data }))
+        );
+      })
+    )
+  );
+
+  constructor(private actions$: Actions, private store: Store, private memberService: MemberService) {}
+}
+QQQQQQQQQQQQQQQQQQQQQQQQQQQQQ
 // member.selectors.ts
-import { createFeatureSelector, createSelector } from '@ngrx/store';
+import { createSelector } from '@ngrx/store';
 import { MemberState } from './member.reducer';
 
-export const selectMemberState = createFeatureSelector<MemberState>('member');
-
-export const selectMemberEntities = createSelector(
-  selectMemberState,
-  state => state.entities
-);
+export const selectMemberState = (state: any) => state.member;
 
 export const selectMemberById = (memberId: string) =>
-  createSelector(selectMemberEntities, entities => entities[memberId]);
-
-export const selectLoadingIds = createSelector(
-  selectMemberState,
-  state => state.loadingIds
-);
-
-export const selectIsLoading = (memberId: string) =>
-  createSelector(selectLoadingIds, ids => ids.includes(memberId));
-/ ssssssssssssssssssssssssssssssssssssssssssssssssss
-
-  member$ = this.store.select(MemberSelectors.selectMemberById(this.memberId));
-  loading$ = this.store.select(MemberSelectors.selectIsLoading(this.memberId));
-
-  constructor(private store: Store) {
-    this.store.dispatch(MemberActions.loadMember({ memberId: this.memberId }));
-  }
+  createSelector(selectMemberState, (state: MemberState) => state.entities[memberId]);
+QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ
+  this.store.dispatch(loadMember({ memberId }));
+      this.member$ = this.store.select(selectMemberById(memberId));
