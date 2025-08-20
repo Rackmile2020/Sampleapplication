@@ -1,19 +1,97 @@
+import { createAction, props } from '@ngrx/store';
+import { Member } from './member.model';
 
-export const LobMatchGuard: CanMatchFn = (
-  route: Route,
-  segments: UrlSegment[]
-) => {
-  // /Mycoverage/overview
-  if (segments.length >= 2 && segments[1]?.path === 'overview') {
-    return true;
-  }
+export const loadMember = createAction(
+  '[Member] Load Member',
+  props<{ memberId: string }>()
+);
 
-  // /Mycoverage/:id/medical[/...]
-  const id = segments[1]?.path;
-  const lob = segments[2]?.path;
+export const loadMemberSuccess = createAction(
+  '[Member] Load Member Success',
+  props<{ member: Member }>()
+);
 
-if (/^[0-9]+$/.test(id ?? '') && lob === 'medical') {
-  return true;
+export const loadMemberFailure = createAction(
+  '[Member] Load Member Failure',
+  props<{ error: any }>()
+);
+import { createReducer, on } from '@ngrx/store';
+import * as MemberActions from './member.actions';
+import { Member } from './member.model';
+
+export interface MemberState {
+  members: { [id: string]: Member }; // cache by id
+  loading: boolean;
+  error: any;
 }
-  return false; // everything else (dental, vision) → parent
+
+export const initialState: MemberState = {
+  members: {},
+  loading: false,
+  error: null,
 };
+
+export const memberReducer = createReducer(
+  initialState,
+
+  on(MemberActions.loadMember, (state) => ({
+    ...state,
+    loading: true,
+    error: null,
+  })),
+
+  on(MemberActions.loadMemberSuccess, (state, { member }) => ({
+    ...state,
+    loading: false,
+    members: { ...state.members, [member.id]: member }
+  })),
+
+  on(MemberActions.loadMemberFailure, (state, { error }) => ({
+    ...state,
+    loading: false,
+    error
+  }))
+);
+import { createFeatureSelector, createSelector } from '@ngrx/store';
+import { MemberState } from './member.reducer';
+
+export const selectMemberState = createFeatureSelector<MemberState>('member');
+
+export const selectMemberById = (memberId: string) =>
+  createSelector(selectMemberState, (state) => state.members[memberId]);
+import { Injectable } from '@angular/core';
+import { Actions, createEffect, ofType } from '@ngrx/effects';
+import { Store } from '@ngrx/store';
+import { of } from 'rxjs';
+import { switchMap, map, catchError, withLatestFrom } from 'rxjs/operators';
+import * as MemberActions from './member.actions';
+import { MemberService } from './member.service';
+import { selectMemberById } from './member.selectors';
+
+@Injectable()
+export class MemberEffects {
+  constructor(
+    private actions$: Actions,
+    private store: Store,
+    private memberService: MemberService
+  ) {}
+
+  loadMember$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(MemberActions.loadMember),
+      withLatestFrom((action) => this.store.select(selectMemberById(action.memberId))),
+      switchMap(([action, cachedMember]) => {
+        if (cachedMember) {
+          // Already in store → just return success with cached data
+          return of(MemberActions.loadMemberSuccess({ member: cachedMember }));
+        } else {
+          // Not in store → fetch from API
+          return this.memberService.getMember(action.memberId).pipe(
+            map((member) => MemberActions.loadMemberSuccess({ member })),
+            catchError((error) => of(MemberActions.loadMemberFailure({ error })))
+          );
+        }
+      })
+    )
+  );
+}
