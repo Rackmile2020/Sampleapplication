@@ -1,17 +1,9 @@
-addTabsForMember(memberId: number, newTabs: Omit<Tab, 'memberId'>[]) {
-  // Check if current tabs belong to the same member
-  const currentMemberId = this.tabs.length ? this.tabs[0].memberId : null;
-
-  if (currentMemberId !== memberId) {
-    // Member changed → clear old tabs
-    this.tabs = [];
-  }
-
-  // Add new tabs incrementally without duplicates
-  newTabs.forEach(tab => {
-    const exists = this.tabs.some(t => t.memberId === memberId && t.label === tab.label);
-    if (!exists) {
-      this.tabs.push({ ...tab, memberId });
-    }
-  });
-}
+ this.router.events
+      .pipe(filter(event => event instanceof NavigationEnd))
+      .subscribe(() => {
+        // Only validate if tabs exist
+        if (this.tabs.length) {
+          console.log('Tabs exist:', this.tabs);
+          // You can add logic to clear tabs or update based on route
+        }
+      });
