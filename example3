@@ -1,14 +1,25 @@
-{
-  path: 'overview',
-  component: OverviewComponent,
-  resolve: { config: OverviewResolver }
-}
-ts
-Copy
-Edit
-@Injectable({ providedIn: 'root' })
-export class OverviewResolver implements Resolve<any> {
-  resolve(route: ActivatedRouteSnapshot) {
-    return { title: 'Overview Page', showHeader: true }; // or fetch from API
+import { Component, OnInit } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
+
+@Component({
+  template: '' // no UI needed
+})
+export class RedirectWrapperComponent implements OnInit {
+  constructor(private router: Router, private route: ActivatedRoute) {}
+
+  ngOnInit() {
+    const redirectFrom = this.route.snapshot.data['redirectFrom'];
+    const memberId = this.route.parent?.snapshot.params['id'];
+
+    if (memberId) {
+      this.router.navigate(['/member', memberId, 'overview'], {
+        state: { redirectFrom }
+      });
+    }
   }
 }
+       component: RedirectWrapperComponent,
+        data: { redirectFrom: 'plan' } 
+  const nav = this.router.getCurrentNavigation();
+  const redirectFrom = nav?.extras.state?.redirectFrom;
+  console.log('Came from:', redirectFrom);
