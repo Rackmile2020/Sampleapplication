@@ -1,14 +1,17 @@
-  // Add new tabs for a member
-  addTabsForMember(memberId: number, newTabs: Omit<Tab, 'memberId'>[]) {
-    // Check if tabs already exist for this memberId
-    const hasTabsForMember = this.tabs.some(tab => tab.memberId === memberId);
+addTabsForMember(memberId: number, newTabs: Omit<Tab, 'memberId'>[]) {
+  // Check if current tabs belong to the same member
+  const currentMemberId = this.tabs.length ? this.tabs[0].memberId : null;
 
-    if (!hasTabsForMember) {
-      // Clear old tabs (optional, if you want to remove tabs for other members)
-      this.tabs = [];
-
-      // Push new tabs with memberId
-      newTabs.forEach(tab => this.tabs.push({ ...tab, memberId }));
-    }
-    // else: memberId same → do nothing, avoid duplicate push
+  if (currentMemberId !== memberId) {
+    // Member changed → clear old tabs
+    this.tabs = [];
   }
+
+  // Add new tabs incrementally without duplicates
+  newTabs.forEach(tab => {
+    const exists = this.tabs.some(t => t.memberId === memberId && t.label === tab.label);
+    if (!exists) {
+      this.tabs.push({ ...tab, memberId });
+    }
+  });
+}
