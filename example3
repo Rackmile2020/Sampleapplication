@@ -76,3 +76,8 @@ export const selectMemberById = (memberId: string) =>
 QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ
   this.store.dispatch(loadMember({ memberId }));
       this.member$ = this.store.select(selectMemberById(memberId));
+
+
+private escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}s
