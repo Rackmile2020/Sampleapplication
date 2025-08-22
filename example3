@@ -1,83 +1,89 @@
-// member.reducer.ts
-import { createReducer, on } from '@ngrx/store';
-import { loadMemberSuccess } from './member.actions';
+sanitizedNested: SafeHtml[][] = [];
+highlightedTitles: string[][] = [];
+highlightedHeadings: string[] = [];
 
-export interface MemberState {
-  entities: { [memberId: string]: any }; // cache per memberId
-}
+ngOnInit() {
+  this.searchService.query$.subscribe(query => {
+    const regex = query ? new RegExp(`(${this.escapeRegExp(query)})`, 'gi') : null;
 
-export const initialState: MemberState = {
-  entities: {}
-};
+    this.highlightedHeadings = [];
+    this.sanitizedNested = [];
+    this.highlightedTitles = [];
 
-export const memberReducer = createReducer(
-  initialState,
-  on(loadMemberSuccess, (state, { memberId, data }) => ({
-    ...state,
-    entities: {
-      ...state.entities,
-      [memberId]: data
-    }
-  }))
-);
-//QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ
-// member.actions.ts
-import { createAction, props } from '@ngrx/store';
+    this.befits.forEach((item, i) => {
+      let match = false;
 
-export const loadMember = createAction(
-  '[Member] Load',
-  props<{ memberId: string }>()
-);
-
-export const loadMemberSuccess = createAction(
-  '[Member] Load Success',
-  props<{ memberId: string, data: any }>()
-);
-QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ
-// member.effects.ts
-import { Injectable } from '@angular/core';
-import { Actions, createEffect, ofType } from '@ngrx/effects';
-import { Store } from '@ngrx/store';
-import { loadMember, loadMemberSuccess } from './member.actions';
-import { switchMap, withLatestFrom, of, map } from 'rxjs';
-import { MemberService } from '../services/member.service';
-import { selectMemberById } from './member.selectors';
-
-@Injectable()
-export class MemberEffects {
-  loadMember$ = createEffect(() =>
-    this.actions$.pipe(
-      ofType(loadMember),
-      withLatestFrom((action) => this.store.select(selectMemberById(action.memberId))),
-      switchMap(([action, cached]) => {
-        if (cached) {
-          // Already in store → don’t call API
-          return of(loadMemberSuccess({ memberId: action.memberId, data: cached }));
+      // Highlight heading safely
+      let heading = item.heading;
+      if (regex) {
+        const highlighted = this.highlightTextOnly(heading, regex);
+        if (highlighted !== heading) {
+          heading = highlighted;
+          match = true;
         }
-        // Call API if not cached
-        return this.memberService.getMember(action.memberId).pipe(
-          map(data => loadMemberSuccess({ memberId: action.memberId, data }))
-        );
-      })
-    )
-  );
+      }
+      this.highlightedHeadings[i] = heading;
 
-  constructor(private actions$: Actions, private store: Store, private memberService: MemberService) {}
+      // Init nested arrays
+      this.sanitizedNested[i] = [];
+      this.highlightedTitles[i] = [];
+
+      item.data.forEach((child, j) => {
+        let childMatch = false;
+
+        // Highlight title safely
+        let title = child.title;
+        if (regex) {
+          const highlighted = this.highlightTextOnly(title, regex);
+          if (highlighted !== title) {
+            title = highlighted;
+            childMatch = true;
+          }
+        }
+        this.highlightedTitles[i][j] = title;
+
+        // Highlight content safely
+        let content = child.content;
+        if (regex) {
+          const highlighted = this.highlightTextOnly(content, regex);
+          if (highlighted !== content) {
+            content = highlighted;
+            childMatch = true;
+          }
+        }
+        this.sanitizedNested[i][j] = this.sanitizer.bypassSecurityTrustHtml(content);
+
+        match ||= childMatch;
+      });
+
+      item.expanded = match;
+    });
+
+    setTimeout(() => {
+      const elements = Array.from(document.querySelectorAll('.highlight')) as HTMLElement[];
+      this.searchService.registerMatches(elements);
+    });
+  });
 }
-QQQQQQQQQQQQQQQQQQQQQQQQQQQQQ
-// member.selectors.ts
-import { createSelector } from '@ngrx/store';
-import { MemberState } from './member.reducer';
 
-export const selectMemberState = (state: any) => state.member;
+// ✅ Utility: escape regex safely
+escapeRegExp(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
-export const selectMemberById = (memberId: string) =>
-  createSelector(selectMemberState, (state: MemberState) => state.entities[memberId]);
-QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ
-  this.store.dispatch(loadMember({ memberId }));
-      this.member$ = this.store.select(selectMemberById(memberId));
+// ✅ Utility: highlight only text nodes, not attributes
+highlightTextOnly(html: string, regex: RegExp): string {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
 
+  const walk = (node: Node) => {
+    if (node.nodeType === Node.TEXT_NODE && regex.test(node.nodeValue!)) {
+      node.nodeValue = node.nodeValue!.replace(regex, '<mark class="highlight">$1</mark>');
+    } else {
+      node.childNodes.forEach(walk);
+    }
+  };
 
-private escapeRegExp(text: string): string {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}s
+  doc.body.childNodes.forEach(walk);
+  return doc.body.innerHTML;
+}
