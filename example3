@@ -1,89 +1,14 @@
-sanitizedNested: SafeHtml[][] = [];
-highlightedTitles: string[][] = [];
-highlightedHeadings: string[] = [];
+  // Add new tabs for a member
+  addTabsForMember(memberId: number, newTabs: Omit<Tab, 'memberId'>[]) {
+    // Check if tabs already exist for this memberId
+    const hasTabsForMember = this.tabs.some(tab => tab.memberId === memberId);
 
-ngOnInit() {
-  this.searchService.query$.subscribe(query => {
-    const regex = query ? new RegExp(`(${this.escapeRegExp(query)})`, 'gi') : null;
+    if (!hasTabsForMember) {
+      // Clear old tabs (optional, if you want to remove tabs for other members)
+      this.tabs = [];
 
-    this.highlightedHeadings = [];
-    this.sanitizedNested = [];
-    this.highlightedTitles = [];
-
-    this.befits.forEach((item, i) => {
-      let match = false;
-
-      // Highlight heading safely
-      let heading = item.heading;
-      if (regex) {
-        const highlighted = this.highlightTextOnly(heading, regex);
-        if (highlighted !== heading) {
-          heading = highlighted;
-          match = true;
-        }
-      }
-      this.highlightedHeadings[i] = heading;
-
-      // Init nested arrays
-      this.sanitizedNested[i] = [];
-      this.highlightedTitles[i] = [];
-
-      item.data.forEach((child, j) => {
-        let childMatch = false;
-
-        // Highlight title safely
-        let title = child.title;
-        if (regex) {
-          const highlighted = this.highlightTextOnly(title, regex);
-          if (highlighted !== title) {
-            title = highlighted;
-            childMatch = true;
-          }
-        }
-        this.highlightedTitles[i][j] = title;
-
-        // Highlight content safely
-        let content = child.content;
-        if (regex) {
-          const highlighted = this.highlightTextOnly(content, regex);
-          if (highlighted !== content) {
-            content = highlighted;
-            childMatch = true;
-          }
-        }
-        this.sanitizedNested[i][j] = this.sanitizer.bypassSecurityTrustHtml(content);
-
-        match ||= childMatch;
-      });
-
-      item.expanded = match;
-    });
-
-    setTimeout(() => {
-      const elements = Array.from(document.querySelectorAll('.highlight')) as HTMLElement[];
-      this.searchService.registerMatches(elements);
-    });
-  });
-}
-
-// ✅ Utility: escape regex safely
-escapeRegExp(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-// ✅ Utility: highlight only text nodes, not attributes
-highlightTextOnly(html: string, regex: RegExp): string {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, 'text/html');
-
-  const walk = (node: Node) => {
-    if (node.nodeType === Node.TEXT_NODE && regex.test(node.nodeValue!)) {
-      node.nodeValue = node.nodeValue!.replace(regex, '<mark class="highlight">$1</mark>');
-    } else {
-      node.childNodes.forEach(walk);
+      // Push new tabs with memberId
+      newTabs.forEach(tab => this.tabs.push({ ...tab, memberId }));
     }
-  };
-
-  doc.body.childNodes.forEach(walk);
-  return doc.body.innerHTML;
-}
+    // else: memberId same → do nothing, avoid duplicate push
+  }
