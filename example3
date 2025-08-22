@@ -1,9 +1,14 @@
- this.router.events
-      .pipe(filter(event => event instanceof NavigationEnd))
-      .subscribe(() => {
-        // Only validate if tabs exist
-        if (this.tabs.length) {
-          console.log('Tabs exist:', this.tabs);
-          // You can add logic to clear tabs or update based on route
-        }
-      });
+{
+  path: 'overview',
+  component: OverviewComponent,
+  resolve: { config: OverviewResolver }
+}
+ts
+Copy
+Edit
+@Injectable({ providedIn: 'root' })
+export class OverviewResolver implements Resolve<any> {
+  resolve(route: ActivatedRouteSnapshot) {
+    return { title: 'Overview Page', showHeader: true }; // or fetch from API
+  }
+}
