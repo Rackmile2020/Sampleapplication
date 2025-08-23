@@ -5,41 +5,46 @@ LoadSearch() {
     this.highlightedHeadings = [];
 
     if (!query) {
+      // fallback: keep original values when query is empty
+      this.whatsCoveredData?.benefits?.forEach((item, index) => {
+        this.highlightedHeadings[index] = this.toTitleCaseIfAllCaps(item?.heading);
+        this.sanitizedHtml[index] = this.sanitizer.bypassSecurityTrustHtml(item.data);
+        item.expanded = false;
+      });
       return;
     }
 
-    // Regex for plain text (headings, simple strings)
     const headingRegex = new RegExp(`(${query})`, "gi");
-
-    // Regex for content → only replace text nodes (between > and <)
     const contentRegex = new RegExp(`>([^<]*)(${query})([^<]*)<`, "gi");
 
     this.whatsCoveredData?.benefits?.forEach((item, index) => {
       let match = false;
 
-      /** 🔹 Highlight heading */
-      let heading = this.toTitleCaseIfAllCaps(item?.heading);
-      if (heading && headingRegex.test(heading)) {
+      /** 🔹 Headings */
+      let heading = this.toTitleCaseIfAllCaps(item?.heading) || "";
+      if (headingRegex.test(heading)) {
         heading = heading.replace(
           headingRegex,
           `<mark class="highlight">$1</mark>`
         );
         match = true;
-        this.highlightedHeadings[index] = heading;
       }
+      // Always assign something so Angular can bind
+      this.highlightedHeadings[index] = heading;
 
-      /** 🔹 Highlight content */
-      let content = item.data;
-      if (content && contentRegex.test(content)) {
+      /** 🔹 Data/content */
+      let content = item.data || "";
+      if (contentRegex.test(content)) {
         content = content.replace(
           contentRegex,
           (m, before, term, after) =>
             `>${before}<mark class="highlight">${term}</mark>${after}<`
         );
         match = true;
-        this.sanitizedHtml[index] =
-          this.sanitizer.bypassSecurityTrustHtml(content);
       }
+      // Always assign sanitized HTML, even if unchanged
+      this.sanitizedHtml[index] =
+        this.sanitizer.bypassSecurityTrustHtml(content);
 
       /** 🔹 Expand if matched */
       item.expanded = match;
