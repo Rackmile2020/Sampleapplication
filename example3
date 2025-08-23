@@ -1,40 +1,28 @@
 LoadSearch() {
   this.searchService.query$.subscribe((query) => {
-    // Reset on each search
     this.sanitizedHtml = [];
     this.highlightedHeadings = [];
 
-    if (!query) {
-      // fallback: keep original values when query is empty
-      this.whatsCoveredData?.benefits?.forEach((item, index) => {
-        this.highlightedHeadings[index] = this.toTitleCaseIfAllCaps(item?.heading);
-        this.sanitizedHtml[index] = this.sanitizer.bypassSecurityTrustHtml(item.data);
-        item.expanded = false;
-      });
-      return;
-    }
-
-    const headingRegex = new RegExp(`(${query})`, "gi");
-    const contentRegex = new RegExp(`>([^<]*)(${query})([^<]*)<`, "gi");
+    const headingRegex = query ? new RegExp(`(${query})`, "gi") : null;
+    const contentRegex = query ? new RegExp(`>([^<]*)(${query})([^<]*)<`, "gi") : null;
 
     this.whatsCoveredData?.benefits?.forEach((item, index) => {
       let match = false;
 
       /** 🔹 Headings */
       let heading = this.toTitleCaseIfAllCaps(item?.heading) || "";
-      if (headingRegex.test(heading)) {
+      if (headingRegex && headingRegex.test(heading)) {
         heading = heading.replace(
           headingRegex,
           `<mark class="highlight">$1</mark>`
         );
         match = true;
       }
-      // Always assign something so Angular can bind
       this.highlightedHeadings[index] = heading;
 
-      /** 🔹 Data/content */
+      /** 🔹 Content */
       let content = item.data || "";
-      if (contentRegex.test(content)) {
+      if (contentRegex && contentRegex.test(content)) {
         content = content.replace(
           contentRegex,
           (m, before, term, after) =>
@@ -42,7 +30,7 @@ LoadSearch() {
         );
         match = true;
       }
-      // Always assign sanitized HTML, even if unchanged
+      // Always sanitize so Angular will render it
       this.sanitizedHtml[index] =
         this.sanitizer.bypassSecurityTrustHtml(content);
 
