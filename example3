@@ -1,45 +1,47 @@
-    const regex = new RegExp(`(>[^<]*)(${query})([^<]*<)`, "gi");
 LoadSearch() {
   this.searchService.query$.subscribe((query) => {
+    // Reset on each search
+    this.sanitizedHtml = [];
+    this.highlightedHeadings = [];
+
     if (!query) {
-      this.sanitizedHtml = [];
-      this.highlightedHeadings = [];
       return;
     }
 
-    // regex to highlight only inside text (between > and <)
-    const regex = new RegExp(`(>[^<]*)(${query})([^<]*<)`, "gi");
+    // Regex for plain text (headings, simple strings)
+    const headingRegex = new RegExp(`(${query})`, "gi");
 
-    this.sanitizedHtml = [];
-    this.highlightedHeadings = [];
+    // Regex for content → only replace text nodes (between > and <)
+    const contentRegex = new RegExp(`>([^<]*)(${query})([^<]*)<`, "gi");
 
     this.whatsCoveredData?.benefits?.forEach((item, index) => {
       let match = false;
 
-      // Highlight heading
+      /** 🔹 Highlight heading */
       let heading = this.toTitleCaseIfAllCaps(item?.heading);
-      if (query && new RegExp(query, "i").test(heading)) {
+      if (heading && headingRegex.test(heading)) {
         heading = heading.replace(
-          new RegExp(`(${query})`, "gi"),
-          '<mark class="highlight">$1</mark>'
+          headingRegex,
+          `<mark class="highlight">$1</mark>`
         );
         match = true;
         this.highlightedHeadings[index] = heading;
       }
 
-      // Highlight content
+      /** 🔹 Highlight content */
       let content = item.data;
-      if (query && regex.test(content)) {
+      if (content && contentRegex.test(content)) {
         content = content.replace(
-          regex,
-          `$1<mark class="highlight">$2</mark>$3`
+          contentRegex,
+          (m, before, term, after) =>
+            `>${before}<mark class="highlight">${term}</mark>${after}<`
         );
         match = true;
         this.sanitizedHtml[index] =
           this.sanitizer.bypassSecurityTrustHtml(content);
       }
 
-      // Expand if matched
+      /** 🔹 Expand if matched */
       item.expanded = match;
     });
   });
