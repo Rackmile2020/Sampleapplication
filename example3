@@ -1,50 +1,40 @@
-LoadSearch() {
-  this.searchService.query$.subscribe((query) => {
-    this.sanitizedHtml = [];
-    this.highlightedHeadings = [];
+import { Injectable, ComponentRef, Type, ViewContainerRef } from '@angular/core';
+import { loadRemoteModule } from '@angular-architects/module-federation';
 
-    if (!query) {
-      // show original if no query
-      this.whatsCoveredData?.benefits?.forEach((item, index) => {
-        this.highlightedHeadings[index] = this.toTitleCaseIfAllCaps(item?.heading);
-        this.sanitizedHtml[index] = this.sanitizer.bypassSecurityTrustHtml(item.data);
-        item.expanded = false;
-      });
-      return;
+@Injectable({ providedIn: 'root' })
+export class SkeletonLoaderService {
+  private skeletonComponent!: Type<any>;
+
+  async loadSkeleton(container: ViewContainerRef, data?: any): Promise<ComponentRef<any>> {
+    try {
+      if (!this.skeletonComponent) {
+        const module = await loadRemoteModule({
+          type: 'module',
+          remoteEntry: '/mpa/responsive/app/mpa/remoteEntry.js',
+          exposedModule: './GlobalSkeletonModule',
+        });
+        this.skeletonComponent = module.GlobalSkeletonModule.getComponent();
+      }
+
+      container.clear();
+      const componentRef = container.createComponent(this.skeletonComponent);
+
+      if (data) {
+        Object.assign(componentRef.instance, data);
+      }
+
+      return componentRef;
+    } catch (err) {
+      console.error('Error loading skeleton component:', err);
+      throw err;
     }
+  }
+}
 
-    const headingRegex = new RegExp(`(${query})`, "gi");
-    const contentRegex = new RegExp(`(${query})(?![^<]*>)`, "gi");
-    // ⬆ matches query but not inside tag attributes
-
-    this.whatsCoveredData?.benefits?.forEach((item, index) => {
-      let match = false;
-
-      /** 🔹 Headings */
-      let heading = this.toTitleCaseIfAllCaps(item?.heading) || "";
-      if (headingRegex.test(heading)) {
-        heading = heading.replace(
-          headingRegex,
-          `<mark class="highlight">$1</mark>`
-        );
-        match = true;
-      }
-      this.highlightedHeadings[index] = heading;
-
-      /** 🔹 Body/content */
-      let content = item.data || "";
-      if (contentRegex.test(content)) {
-        content = content.replace(
-          contentRegex,
-          `<mark class="highlight">$1</mark>`
-        );
-        match = true;
-      }
-      this.sanitizedHtml[index] =
-        this.sanitizer.bypassSecurityTrustHtml(content);
-
-      /** 🔹 Expand if matched */
-      item.expanded = match;
+ngAfterViewInit() {
+  this.skeletonLoader.loadSkeleton(this.skeletonContainer, { some: 'payload' })
+    .then(ref => {
+      // you can keep reference if needed
+      // this.componentRef = ref;
     });
-  });
 }
