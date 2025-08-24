@@ -1,24 +1,15 @@
-private hasScrolled = false;
+  window.addEventListener('scroll', this.onManualScroll.bind(this), { passive: true });
+}
 
-scrollOnce(id: string) {
-  if (this.hasScrolled) return;
+private onManualScroll() {
+  if (this.zoneSub && !this.zoneSub.closed) {
+    this.zoneSub.unsubscribe();
+  }
+}
 
-  const tryScroll = () => {
-    const el = document.getElementById(id);
-
-    // wait until element exists in DOM
-    if (!el) {
-      requestAnimationFrame(tryScroll);
-      return;
-    }
-
-    // scroll if id is not "myId"
-    if (id !== 'myId') {
-      el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
-    }
-
-    this.hasScrolled = true; // mark as done, so manual scroll works
-  };
-
-  requestAnimationFrame(tryScroll);
+ngOnDestroy() {
+  if (this.zoneSub && !this.zoneSub.closed) {
+    this.zoneSub.unsubscribe();
+  }
+  window.removeEventListener('scroll', this.onManualScroll.bind(this));
 }
