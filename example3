@@ -1,40 +1,24 @@
-import { Injectable, ComponentRef, Type, ViewContainerRef } from '@angular/core';
-import { loadRemoteModule } from '@angular-architects/module-federation';
+private hasScrolled = false;
 
-@Injectable({ providedIn: 'root' })
-export class SkeletonLoaderService {
-  private skeletonComponent!: Type<any>;
+scrollOnce(id: string) {
+  if (this.hasScrolled) return;
 
-  async loadSkeleton(container: ViewContainerRef, data?: any): Promise<ComponentRef<any>> {
-    try {
-      if (!this.skeletonComponent) {
-        const module = await loadRemoteModule({
-          type: 'module',
-          remoteEntry: '/mpa/responsive/app/mpa/remoteEntry.js',
-          exposedModule: './GlobalSkeletonModule',
-        });
-        this.skeletonComponent = module.GlobalSkeletonModule.getComponent();
-      }
+  const tryScroll = () => {
+    const el = document.getElementById(id);
 
-      container.clear();
-      const componentRef = container.createComponent(this.skeletonComponent);
-
-      if (data) {
-        Object.assign(componentRef.instance, data);
-      }
-
-      return componentRef;
-    } catch (err) {
-      console.error('Error loading skeleton component:', err);
-      throw err;
+    // wait until element exists in DOM
+    if (!el) {
+      requestAnimationFrame(tryScroll);
+      return;
     }
-  }
-}
 
-ngAfterViewInit() {
-  this.skeletonLoader.loadSkeleton(this.skeletonContainer, { some: 'payload' })
-    .then(ref => {
-      // you can keep reference if needed
-      // this.componentRef = ref;
-    });
+    // scroll if id is not "myId"
+    if (id !== 'myId') {
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+    }
+
+    this.hasScrolled = true; // mark as done, so manual scroll works
+  };
+
+  requestAnimationFrame(tryScroll);
 }
