@@ -1,39 +1,43 @@
+private targetId = 'someId';
+private skipId = 'myId';
+private hasScrolled = false;
 
 ngOnInit() {
-  // Listen to manual scroll
-  window.addEventListener('scroll', this.onManualScroll.bind(this), { passive: true });
-
-  // Wait for data (only first non-null emission)
+  // Wait for data from another component
   this.dataService.data$
     .pipe(
-      filter(data => !!data),
-      take(1) // only once
+      filter(data => !!data), // only proceed when data exists
+      take(1)                 // only once
     )
     .subscribe(() => {
-      // Only proceed if not already scrolled
-      if (!this.hasScrolled) {
-        const scrollWhenReady = () => {
-          const el = document.getElementById(targetId);
+      // Run outside Angular to avoid CD interference
+      this.zone.runOutsideAngular(() => {
+        // Listen to manual scroll
+        window.addEventListener('scroll', this.onManualScroll.bind(this), { passive: true });
 
-          if (el && targetId !== 'myId' && !this.hasScrolled) {
-            el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
-            this.hasScrolled = true;
-          } else if (!this.hasScrolled) {
-            // Retry on next frame until element exists
-            requestAnimationFrame(scrollWhenReady);
-          }
-        };
-
-        // Run outside Angular to prevent CD interference
-        this.zone.runOutsideAngular(() => {
-          requestAnimationFrame(scrollWhenReady);
-        });
-      }
+        // Optionally, wait for Angular to stabilize first
+        this.zone.onStable
+          .pipe(take(1))
+          .subscribe(() => {
+            // Ready to handle manual scroll; nothing automatic happens yet
+          });
+      });
     });
 }
 
 private onManualScroll() {
-  this.hasScrolled = true; // cancel auto scroll
+  if (this.hasScrolled) return; // prevent multiple scrolls
+
+  const el = document.getElementById(this.targetId);
+
+  if (el && this.targetId !== this.skipId) {
+    el.scrollIntoView({
+      behavior: 'smooth',
+      block: 'nearest',
+      inline: 'nearest'
+    });
+    this.hasScrolled = true; // mark that scroll happened
+  }
 }
 
 ngOnDestroy() {
