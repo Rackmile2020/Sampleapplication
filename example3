@@ -1,15 +1,41 @@
+
+ngOnInit() {
+  // Listen to manual scroll
   window.addEventListener('scroll', this.onManualScroll.bind(this), { passive: true });
+
+  // Wait for data (only first non-null emission)
+  this.dataService.data$
+    .pipe(
+      filter(data => !!data),
+      take(1) // only once
+    )
+    .subscribe(() => {
+      // Only proceed if not already scrolled
+      if (!this.hasScrolled) {
+        const scrollWhenReady = () => {
+          const el = document.getElementById(targetId);
+
+          if (el && targetId !== 'myId' && !this.hasScrolled) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+            this.hasScrolled = true;
+          } else if (!this.hasScrolled) {
+            // Retry on next frame until element exists
+            requestAnimationFrame(scrollWhenReady);
+          }
+        };
+
+        // Run outside Angular to prevent CD interference
+        this.zone.runOutsideAngular(() => {
+          requestAnimationFrame(scrollWhenReady);
+        });
+      }
+    });
 }
 
 private onManualScroll() {
-  if (this.zoneSub && !this.zoneSub.closed) {
-    this.zoneSub.unsubscribe();
-  }
+  this.hasScrolled = true; // cancel auto scroll
 }
 
 ngOnDestroy() {
-  if (this.zoneSub && !this.zoneSub.closed) {
-    this.zoneSub.unsubscribe();
-  }
   window.removeEventListener('scroll', this.onManualScroll.bind(this));
 }
