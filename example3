@@ -1,18 +1,14 @@
-`promise new Promise(resolve => {
-      const base = window.location.pathname.includes('base') ? '/base' : '';
-      const url = window.location.origin + base + '/child/remoteEntry.js';
+ getChildRemoteUrl(): string {
+    let remoteUrl = '';
 
-      const script = document.createElement('script');
-      script.src = url;
-      script.type = 'text/javascript';
-      script.async = true;
+    if (typeof window !== 'undefined' && window.location.href.includes('local')) {
+      // Local dev remote
+      remoteUrl = 'http://localhost:4201/child/remoteEntry.js';
+    } else {
+      // Production remote
+      const base = typeof window !== 'undefined' && window.location.pathname.includes('base') ? '/base' : '';
+      remoteUrl = `${window.location.origin}${base}/child/remoteEntry.js`;
+    }
 
-      script.onload = () => {
-        console.log('Child remote loaded from', url);
-        resolve(window.child); // window.child must match child library name
-      };
-
-      script.onerror = () => console.error('Failed to load child remote', url);
-
-      document.head.appendChild(script);
-    })`
+    return remoteUrl;
+  }
