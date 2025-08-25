@@ -1,27 +1,55 @@
-@Injectable({ providedIn: 'root' })
-export class CssReadyService {
+import { Injectable } from '@angular/core';
+
+@Injectable({
+  providedIn: 'root'
+})
+export class BootstrapLoaderService {
+
+  private bootstrapFileName = 'bootstrap.min.css'; // 👈 adjust if different
+
+  /**
+   * Finds the Bootstrap <link> element by filename in href
+   */
+  private findBootstrapLink(): HTMLLinkElement | null {
+    const links = Array.from(document.getElementsByTagName('link'));
+    return links.find(l =>
+      l.rel === 'stylesheet' &&
+      l.href.includes(this.bootstrapFileName)
+    ) as HTMLLinkElement | null;
+  }
+
+  /**
+   * Waits until Bootstrap CSS is fully loaded
+   */
   waitForBootstrap(): Promise<void> {
     return new Promise(resolve => {
-      const existing = document.getElementById('bootstrap-css');
-      if (existing && (existing as HTMLLinkElement).sheet) {
+      const link = this.findBootstrapLink();
+
+      if (!link) {
+        console.warn(`⚠️ Bootstrap CSS (${this.bootstrapFileName}) not found in DOM`);
         resolve();
         return;
       }
 
-      // Fallback: listen for load
-      const link = document.getElementById('bootstrap-css') as HTMLLinkElement;
-      if (link) {
-        link.addEventListener('load', () => resolve(), { once: true });
-      } else {
-        console.warn('Bootstrap not found, resolving anyway.');
+      // Already loaded
+      if (link.sheet) {
         resolve();
+        return;
       }
+
+      // Wait for load event
+      link.addEventListener('load', () => {
+        console.log('✅ Bootstrap CSS loaded');
+        resolve();
+      }, { once: true });
+
+      // Fallback: resolve after some time if "load" never fires
+      setTimeout(() => {
+        if (link.sheet) {
+          console.log('⚠️ Resolved by fallback check (stylesheet available)');
+          resolve();
+        }
+      }, 3000);
     });
   }
-}
-constructor(private cssReady: CssReadyService) {}
-
-async ngOnInit() {
-  await this.cssReady.waitForBootstrap();
-  this.isReady = true;
 }
