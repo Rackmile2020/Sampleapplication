@@ -1,55 +1,10 @@
-import { Injectable } from '@angular/core';
-
-@Injectable({
-  providedIn: 'root'
-})
-export class BootstrapLoaderService {
-
-  private bootstrapFileName = 'bootstrap.min.css'; // 👈 adjust if different
-
-  /**
-   * Finds the Bootstrap <link> element by filename in href
-   */
-  private findBootstrapLink(): HTMLLinkElement | null {
-    const links = Array.from(document.getElementsByTagName('link'));
-    return links.find(l =>
-      l.rel === 'stylesheet' &&
-      l.href.includes(this.bootstrapFileName)
-    ) as HTMLLinkElement | null;
-  }
-
-  /**
-   * Waits until Bootstrap CSS is fully loaded
-   */
-  waitForBootstrap(): Promise<void> {
-    return new Promise(resolve => {
-      const link = this.findBootstrapLink();
-
-      if (!link) {
-        console.warn(`⚠️ Bootstrap CSS (${this.bootstrapFileName}) not found in DOM`);
-        resolve();
-        return;
-      }
-
-      // Already loaded
-      if (link.sheet) {
-        resolve();
-        return;
-      }
-
-      // Wait for load event
-      link.addEventListener('load', () => {
-        console.log('✅ Bootstrap CSS loaded');
-        resolve();
-      }, { once: true });
-
-      // Fallback: resolve after some time if "load" never fires
-      setTimeout(() => {
-        if (link.sheet) {
-          console.log('⚠️ Resolved by fallback check (stylesheet available)');
-          resolve();
-        }
-      }, 3000);
-    });
-  }
+remotes: {
+  child: `promise new Promise(resolve => {
+    const base = window.location.pathname.includes('base') ? '/base' : '';
+    const url = window.location.origin + base + '/child/remoteEntry.js';
+    const script = document.createElement('script');
+    script.src = url;
+    script.onload = () => resolve(window.child); // window.child = exposed container
+    document.head.appendChild(script);
+  })`
 }
