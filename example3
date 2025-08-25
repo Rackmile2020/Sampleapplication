@@ -1,10 +1,18 @@
-remotes: {
-  child: `promise new Promise(resolve => {
-    const base = window.location.pathname.includes('base') ? '/base' : '';
-    const url = window.location.origin + base + '/child/remoteEntry.js';
-    const script = document.createElement('script');
-    script.src = url;
-    script.onload = () => resolve(window.child); // window.child = exposed container
-    document.head.appendChild(script);
-  })`
-}
+`promise new Promise(resolve => {
+      const base = window.location.pathname.includes('base') ? '/base' : '';
+      const url = window.location.origin + base + '/child/remoteEntry.js';
+
+      const script = document.createElement('script');
+      script.src = url;
+      script.type = 'text/javascript';
+      script.async = true;
+
+      script.onload = () => {
+        console.log('Child remote loaded from', url);
+        resolve(window.child); // window.child must match child library name
+      };
+
+      script.onerror = () => console.error('Failed to load child remote', url);
+
+      document.head.appendChild(script);
+    })`
