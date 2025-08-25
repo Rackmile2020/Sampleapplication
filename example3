@@ -1,56 +1,27 @@
-private hasScrolled = false;
-private targetId = 'someId';
-private skipId = 'myId';
-private zoneSub!: Subscription;
+@Injectable({ providedIn: 'root' })
+export class CssReadyService {
+  waitForBootstrap(): Promise<void> {
+    return new Promise(resolve => {
+      const existing = document.getElementById('bootstrap-css');
+      if (existing && (existing as HTMLLinkElement).sheet) {
+        resolve();
+        return;
+      }
 
-ngOnInit() {
-  this.dataService.data$
-    .pipe(
-      filter(data => !!data),
-      take(1)
-    )
-    .subscribe(() => {
-      this.zone.runOutsideAngular(() => {
-        // Listen to manual scroll
-        window.addEventListener('scroll', this.onManualScroll.bind(this), { passive: true });
-
-        // Subscribe to onStable only once
-        this.zoneSub = this.zone.onStable
-          .pipe(take(1))
-          .subscribe(() => {
-            const el = document.getElementById(this.targetId);
-
-            if (el && this.targetId !== this.skipId && !this.hasScrolled) {
-              el.scrollIntoView({
-                behavior: 'smooth',
-                block: 'nearest', // prevents jumping to top
-                inline: 'nearest'
-              });
-              this.hasScrolled = true;
-
-              // unsubscribe so onStable does not trigger again
-              if (this.zoneSub && !this.zoneSub.closed) {
-                this.zoneSub.unsubscribe();
-              }
-            }
-          });
-      });
+      // Fallback: listen for load
+      const link = document.getElementById('bootstrap-css') as HTMLLinkElement;
+      if (link) {
+        link.addEventListener('load', () => resolve(), { once: true });
+      } else {
+        console.warn('Bootstrap not found, resolving anyway.');
+        resolve();
+      }
     });
-}
-
-private onManualScroll() {
-  // mark as scrolled so auto scroll won't run again
-  this.hasScrolled = true;
-
-  // unsubscribe from zone.onStable to allow free scrolling
-  if (this.zoneSub && !this.zoneSub.closed) {
-    this.zoneSub.unsubscribe();
   }
 }
+constructor(private cssReady: CssReadyService) {}
 
-ngOnDestroy() {
-  window.removeEventListener('scroll', this.onManualScroll.bind(this));
-  if (this.zoneSub && !this.zoneSub.closed) {
-    this.zoneSub.unsubscribe();
-  }
+async ngOnInit() {
+  await this.cssReady.waitForBootstrap();
+  this.isReady = true;
 }
