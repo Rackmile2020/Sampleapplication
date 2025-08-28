@@ -1,43 +1,23 @@
-import { Injectable } from '@angular/core';
-import { CanActivate, ActivatedRouteSnapshot, Router, RouterStateSnapshot } from '@angular/router';
-import { Observable, of } from 'rxjs';
-import { map, catchError } from 'rxjs/operators';
-import { MembershipService, MembershipResponse } from './membership.service';
+ try {
+      const res: MembershipResponse = await this.membershipService.getMembership(memberId);
 
-@Injectable({ providedIn: 'root' })
-export class MembershipGuard implements CanActivate {
-  constructor(
-    private membershipService: MembershipService,
-    private router: Router
-  ) {}
+      // ❌ Case 1: invalid member
+      if (res === false) {
+        return this.router.createUrlTree(['/home']);
+      }
 
-  canActivate(route: ActivatedRouteSnapshot, state: RouterStateSnapshot): Observable<boolean> {
-    const memberId = route.parent?.paramMap.get('id'); // assume parent has /:id
-    const requestedTab = route.routeConfig?.path ?? '';
+      // 🔀 Case 2: redirectUrl
+      if ('redirectUrl' in res) {
+        return this.router.createUrlTree([res.redirectUrl]);
+      }
 
-    if (!memberId) {
-      this.router.navigate(['/home']);
-      return of(false);
+      // ✅ Case 3: allowed tabs
+      if ('allowedTabs' in res) {
+        const isAllowed = res.allowedTabs.some(tab => tab.id === requestedTab);
+        return isAllowed ? true : this.router.createUrlTree(['/home']);
+      }
+
+      return this.router.createUrlTree(['/home']);
+    } catch (err) {
+      return this.router.createUrlTree(['/home']);
     }
-
-    return this.membershipService.getMembership(memberId).pipe(
-      map((response: MembershipResponse | false) => {
-        if (response === false) {
-          this.router.navigate(['/home']);
-          return false;
-        }
-
-        if (!response.allowedTabs.includes(requestedTab)) {
-          this.router.navigate(['/home']);
-          return false;
-        }
-
-        return true; // ✅ valid + allowed
-      }),
-      catchError(() => {
-        this.router.navigate(['/home']);
-        return of(false);
-      })
-    );
-  }
-}
