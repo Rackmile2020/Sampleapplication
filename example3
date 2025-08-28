@@ -1,26 +1,43 @@
- `promise new Promise(resolve => {
-    let url = '';
+import { Injectable } from '@angular/core';
+import { CanActivate, ActivatedRouteSnapshot, Router, RouterStateSnapshot } from '@angular/router';
+import { Observable, of } from 'rxjs';
+import { map, catchError } from 'rxjs/operators';
+import { MembershipService, MembershipResponse } from './membership.service';
 
-    if (typeof window !== 'undefined' && window.location.href.includes('localhost')) {
-      // Local dev URL
-      url = 'http://localhost:4201/child/remoteEntry.js';
-    } else {
-      // Production URL (can include /base etc.)
-      const base = window.location.pathname.includes('base') ? '/base' : '';
-      url = window.location.origin + base + '/child/remoteEntry.js';
+@Injectable({ providedIn: 'root' })
+export class MembershipGuard implements CanActivate {
+  constructor(
+    private membershipService: MembershipService,
+    private router: Router
+  ) {}
+
+  canActivate(route: ActivatedRouteSnapshot, state: RouterStateSnapshot): Observable<boolean> {
+    const memberId = route.parent?.paramMap.get('id'); // assume parent has /:id
+    const requestedTab = route.routeConfig?.path ?? '';
+
+    if (!memberId) {
+      this.router.navigate(['/home']);
+      return of(false);
     }
 
-    const script = document.createElement('script');
-    script.src = url;
-    script.type = 'text/javascript';
-    script.async = true;
+    return this.membershipService.getMembership(memberId).pipe(
+      map((response: MembershipResponse | false) => {
+        if (response === false) {
+          this.router.navigate(['/home']);
+          return false;
+        }
 
-    script.onload = () => {
-      console.log('Child remote loaded from', url);
-      resolve(window.child); // window.child must match child library name
-    };
+        if (!response.allowedTabs.includes(requestedTab)) {
+          this.router.navigate(['/home']);
+          return false;
+        }
 
-    script.onerror = () => console.error('Failed to load child remote', url);
-
-    document.head.appendChild(script);
-  })`
+        return true; // ✅ valid + allowed
+      }),
+      catchError(() => {
+        this.router.navigate(['/home']);
+        return of(false);
+      })
+    );
+  }
+}
