@@ -1,23 +1,10 @@
- try {
-      const res: MembershipResponse = await this.membershipService.getMembership(memberId);
-
-      // ❌ Case 1: invalid member
-      if (res === false) {
-        return this.router.createUrlTree(['/home']);
-      }
-
-      // 🔀 Case 2: redirectUrl
-      if ('redirectUrl' in res) {
-        return this.router.createUrlTree([res.redirectUrl]);
-      }
-
-      // ✅ Case 3: allowed tabs
-      if ('allowedTabs' in res) {
-        const isAllowed = res.allowedTabs.some(tab => tab.id === requestedTab);
-        return isAllowed ? true : this.router.createUrlTree(['/home']);
-      }
-
-      return this.router.createUrlTree(['/home']);
-    } catch (err) {
-      return this.router.createUrlTree(['/home']);
-    }
+ private loadExposedModule(): Promise<any> {
+    return loadRemoteModule({
+      type: 'module',
+      remoteEntry: 'http://localhost:4201/remoteEntry.js', // 👈 child MFE entry
+      exposedModule: './ChildExposedModule'                // 👈 whatever you exposed
+    }).then(m => {
+      console.log('Child exposed module loaded:', m);
+      return m;
+    });
+  }
