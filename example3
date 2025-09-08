@@ -1,10 +1,45 @@
- private loadExposedModule(): Promise<any> {
-    return loadRemoteModule({
-      type: 'module',
-      remoteEntry: 'http://localhost:4201/remoteEntry.js', // 👈 child MFE entry
-      exposedModule: './ChildExposedModule'                // 👈 whatever you exposed
-    }).then(m => {
-      console.log('Child exposed module loaded:', m);
-      return m;
-    });
+  @ViewChild('searchTitle') searchTitle!: ElementRef;
+  @ViewChild('searchBox') searchBox!: ElementRef;
+
+  // Bind a class to control sticky state
+  @HostBinding('class.sticky') isSticky = false;
+
+  constructor(public searchService: SearchService, private el: ElementRef) {}
+
+  onSearch() {
+    this.searchService.setSearchTerm(this.searchText);
+    this.matchCount = this.searchService.getCount();
+    this.currentIndex = this.searchService.currentIndex;
+
+    // Make sticky if matches found
+    if (this.matchCount > 0) {
+      this.isSticky = true;
+    } else {
+      this.isSticky = false;
+    }
   }
+
+  clear() {
+    this.searchText = '';
+    this.searchService.clear();
+    this.matchCount = 0;
+    this.currentIndex = 0;
+    this.isSticky = false;
+  }
+
+  navigate(dir: 'up' | 'down') {
+    this.searchService.navigate(dir);
+    this.currentIndex = this.searchService.currentIndex;
+    this.matchCount = this.searchService.getCount();
+  }
+
+  @HostListener('window:scroll', [])
+  onWindowScroll() {
+    if (!this.searchTitle) return;
+    const titleTop = this.searchTitle.nativeElement.getBoundingClientRect().top;
+    const searchFound = this.matchCount > 0;
+
+    // Sticky if scroll past title OR if search matches exist
+    this.isSticky = titleTop <= 0 || searchFound;
+  }
+}
