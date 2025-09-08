@@ -1,45 +1,34 @@
-  @ViewChild('searchTitle') searchTitle!: ElementRef;
-  @ViewChild('searchBox') searchBox!: ElementRef;
+@HostListener('window:scroll', [])
+onWindowScroll() {
+  this.updateSticky();
+}
 
-  // Bind a class to control sticky state
-  @HostBinding('class.sticky') isSticky = false;
+onSearch() {
+  this.searchService.setSearchTerm(this.searchText);
+  const matchCount = this.searchService.getCount();
 
-  constructor(public searchService: SearchService, private el: ElementRef) {}
+  // call same sticky logic when search matches found
+  this.updateSticky(matchCount > 0);
+}
 
-  onSearch() {
-    this.searchService.setSearchTerm(this.searchText);
-    this.matchCount = this.searchService.getCount();
-    this.currentIndex = this.searchService.currentIndex;
+clear() {
+  this.searchText = '';
+  this.searchService.clear();
+  this.updateSticky(false); // reset sticky
+}
 
-    // Make sticky if matches found
-    if (this.matchCount > 0) {
-      this.isSticky = true;
-    } else {
-      this.isSticky = false;
-    }
-  }
+// central sticky logic
+updateSticky(forceSticky: boolean = false) {
+  const header = document.getElementById('search-box');
+  const searchTitle = document.getElementById('search-title');
+  if (!header || !searchTitle) return;
 
-  clear() {
-    this.searchText = '';
-    this.searchService.clear();
-    this.matchCount = 0;
-    this.currentIndex = 0;
-    this.isSticky = false;
-  }
+  const sticky = searchTitle.offsetTop;
 
-  navigate(dir: 'up' | 'down') {
-    this.searchService.navigate(dir);
-    this.currentIndex = this.searchService.currentIndex;
-    this.matchCount = this.searchService.getCount();
-  }
-
-  @HostListener('window:scroll', [])
-  onWindowScroll() {
-    if (!this.searchTitle) return;
-    const titleTop = this.searchTitle.nativeElement.getBoundingClientRect().top;
-    const searchFound = this.matchCount > 0;
-
-    // Sticky if scroll past title OR if search matches exist
-    this.isSticky = titleTop <= 0 || searchFound;
+  // window.scrollY is number of pixels scrolled
+  if (window.scrollY > sticky || forceSticky) {
+    header.classList.add('search-box-sticky');
+  } else {
+    header.classList.remove('search-box-sticky');
   }
 }
