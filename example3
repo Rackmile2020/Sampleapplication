@@ -1,26 +1,17 @@
-scrollToMatch(index: number) {
-  const matches = Array.from(document.querySelectorAll('.highlight')) as HTMLElement[];
-  if (!matches.length || index < 0 || index >= matches.length) return;
+  const el = this.matchElements[this.currentIndex];
+    if (!el) return;
 
-  const currentMatch = matches[index];
-  const header = document.getElementById('search-box');
-  const headerHeight = header ? header.offsetHeight : 0;
+    // Use #search-title as reference
+    const header = document.getElementById('search-title');
+    const headerHeight = header ? header.offsetHeight : 0;
 
-  // Get the absolute Y position of the element
-  const elementTop = currentMatch.offsetTop;
+    const rect = el.getBoundingClientRect();
+    const absoluteTop = window.scrollY + rect.top;
 
-  // Scroll so element is just below sticky header
-  const scrollPosition = elementTop - headerHeight - 5; // 5px margin
+    const scrollTarget = absoluteTop - headerHeight - 10;
 
-  window.scrollTo({
-    top: scrollPosition,
-    behavior: 'smooth'
-  });
-
-  // Highlight active match
-  matches.forEach(el => el.classList.remove('active-match'));
-  currentMatch.classList.add('active-match');
-
-  // update current index
-  this.currentIndex = index;
-}
+    window.scrollTo({
+      top: scrollTarget,
+      behavior: 'smooth'
+    });
+  }
