@@ -1,34 +1,26 @@
-@HostListener('window:scroll', [])
-onWindowScroll() {
-  this.updateSticky();
-}
+scrollToMatch(index: number) {
+  const matches = Array.from(document.querySelectorAll('.highlight')) as HTMLElement[];
+  if (!matches.length || index < 0 || index >= matches.length) return;
 
-onSearch() {
-  this.searchService.setSearchTerm(this.searchText);
-  const matchCount = this.searchService.getCount();
-
-  // call same sticky logic when search matches found
-  this.updateSticky(matchCount > 0);
-}
-
-clear() {
-  this.searchText = '';
-  this.searchService.clear();
-  this.updateSticky(false); // reset sticky
-}
-
-// central sticky logic
-updateSticky(forceSticky: boolean = false) {
+  const currentMatch = matches[index];
   const header = document.getElementById('search-box');
-  const searchTitle = document.getElementById('search-title');
-  if (!header || !searchTitle) return;
+  const headerHeight = header ? header.offsetHeight : 0;
 
-  const sticky = searchTitle.offsetTop;
+  // Get the absolute Y position of the element
+  const elementTop = currentMatch.offsetTop;
 
-  // window.scrollY is number of pixels scrolled
-  if (window.scrollY > sticky || forceSticky) {
-    header.classList.add('search-box-sticky');
-  } else {
-    header.classList.remove('search-box-sticky');
-  }
+  // Scroll so element is just below sticky header
+  const scrollPosition = elementTop - headerHeight - 5; // 5px margin
+
+  window.scrollTo({
+    top: scrollPosition,
+    behavior: 'smooth'
+  });
+
+  // Highlight active match
+  matches.forEach(el => el.classList.remove('active-match'));
+  currentMatch.classList.add('active-match');
+
+  // update current index
+  this.currentIndex = index;
 }
