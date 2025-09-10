@@ -1,17 +1,54 @@
-  const el = this.matchElements[this.currentIndex];
-    if (!el) return;
+public validateMember(
+  memberId: any,
+  memberView: any,
+  requestViewTab: any
+): Observable<boolean | UrlTree> {
+  return from(this.bridge.loadExposedModule()).pipe(
+    switchMap(() =>
+      this.parentStore
+        .select(PARENT_STORE_CMS.RESPSHARED)
+        .pipe(
+          distinctUntilChanged(
+            (prev, curr) => JSON.stringify(prev) === JSON.stringify(curr)
+          ),
+          take(1),
+          switchMap((respShared) => {
+            if (!respShared) {
+              return of(false);
+            }
 
-    // Use #search-title as reference
-    const header = document.getElementById('search-title');
-    const headerHeight = header ? header.offsetHeight : 0;
+            // convert respShared to your memberships
+            const allAccessibleMemberships = new BaseMemberships(
+              JSON.parse(JSON.stringify(respShared))
+            );
 
-    const rect = el.getBoundingClientRect();
-    const absoluteTop = window.scrollY + rect.top;
+            const currentMembership = allAccessibleMemberships
+              .getMyMemberships()
+              .find((m: any) => m.attributes.id === Number(memberId));
 
-    const scrollTarget = absoluteTop - headerHeight - 10;
+            const isValidMembership = !!currentMembership;
+            const isActiveMembership =
+              isValidMembership && !currentMembership.isFutureActive();
 
-    window.scrollTo({
-      top: scrollTarget,
-      behavior: 'smooth'
-    });
-  }
+            if (!isValidMembership) {
+              return of(false);
+            }
+
+            // if you need to deep link
+            return this.deeplinkWithNtMember(
+              memberId,
+              requestViewTab,
+              currentMembership
+            ).pipe(
+              map((route) => {
+                if (route) {
+                  return this.router.createUrlTree([route]); // redirect
+                }
+                return true; // allow navigation
+              })
+            );
+          })
+        )
+    )
+  );
+}
