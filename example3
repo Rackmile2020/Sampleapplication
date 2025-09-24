@@ -1,1 +1,23 @@
-  /<a href=(?:\\?["'])?\[?([^\]"']+)\]?(?:\\?["'])?>/g,
+  ngAfterViewInit() {
+    const container: HTMLElement = this.el.nativeElement.querySelector('div');
+    const anchors = container.querySelectorAll('a');
+
+    anchors.forEach((a) => {
+      const href = a.getAttribute('href');
+      if (!href) return;
+
+      a.addEventListener('click', (event) => {
+        event.preventDefault();
+
+        // normalize: [medical] → medical
+        const cleanRoute = href.replace(/^\[|\]$/g, '');
+
+        // add slash if missing
+        const finalRoute = cleanRoute.startsWith('/')
+          ? cleanRoute
+          : '/' + cleanRoute;
+
+        this.router.navigateByUrl(finalRoute);
+      });
+    });
+  }
