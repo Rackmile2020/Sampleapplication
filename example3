@@ -1,4 +1,1 @@
-dynamicHtml = dynamicHtml.replace(
-  /<a href="\[([^\]]+)\]">/g,
-  `<a href="#" data-router-link="$1">`
-);
+  /<a href=\\"?\[([^\]]+)\]\\"?>/g,
