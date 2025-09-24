@@ -1,23 +1,4 @@
-  constructor(private router: Router, private el: ElementRef) {
-    this.dynamicHtml = `<p>Check this link: <a href="/medical">Medical</a></p>
-                        <p>Another link: <a href="/overview">Overview</a></p>`;
-
-    // Replace href with data-router-link
-    this.dynamicHtml = this.dynamicHtml.replace(
-      /<a href="([^"]+)">/g,
-      `<a href="#" data-router-link="$1">`
-    );
-  }
-
-  ngAfterViewInit() {
-    const anchors: NodeListOf<HTMLAnchorElement> =
-      this.el.nativeElement.querySelectorAll('[data-router-link]');
-
-    anchors.forEach((a) => {
-      const route = a.getAttribute('data-router-link');
-      a.addEventListener('click', (e) => {
-        e.preventDefault();
-        if (route) this.router.navigateByUrl(route);
-      });
-    });
-  }
+dynamicHtml = dynamicHtml.replace(
+  /<a href="\[([^\]]+)\]">/g,
+  `<a href="#" data-router-link="$1">`
+);
