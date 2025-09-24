@@ -1,54 +1,23 @@
-public validateMember(
-  memberId: any,
-  memberView: any,
-  requestViewTab: any
-): Observable<boolean | UrlTree> {
-  return from(this.bridge.loadExposedModule()).pipe(
-    switchMap(() =>
-      this.parentStore
-        .select(PARENT_STORE_CMS.RESPSHARED)
-        .pipe(
-          distinctUntilChanged(
-            (prev, curr) => JSON.stringify(prev) === JSON.stringify(curr)
-          ),
-          take(1),
-          switchMap((respShared) => {
-            if (!respShared) {
-              return of(false);
-            }
+  constructor(private router: Router, private el: ElementRef) {
+    this.dynamicHtml = `<p>Check this link: <a href="/medical">Medical</a></p>
+                        <p>Another link: <a href="/overview">Overview</a></p>`;
 
-            // convert respShared to your memberships
-            const allAccessibleMemberships = new BaseMemberships(
-              JSON.parse(JSON.stringify(respShared))
-            );
+    // Replace href with data-router-link
+    this.dynamicHtml = this.dynamicHtml.replace(
+      /<a href="([^"]+)">/g,
+      `<a href="#" data-router-link="$1">`
+    );
+  }
 
-            const currentMembership = allAccessibleMemberships
-              .getMyMemberships()
-              .find((m: any) => m.attributes.id === Number(memberId));
+  ngAfterViewInit() {
+    const anchors: NodeListOf<HTMLAnchorElement> =
+      this.el.nativeElement.querySelectorAll('[data-router-link]');
 
-            const isValidMembership = !!currentMembership;
-            const isActiveMembership =
-              isValidMembership && !currentMembership.isFutureActive();
-
-            if (!isValidMembership) {
-              return of(false);
-            }
-
-            // if you need to deep link
-            return this.deeplinkWithNtMember(
-              memberId,
-              requestViewTab,
-              currentMembership
-            ).pipe(
-              map((route) => {
-                if (route) {
-                  return this.router.createUrlTree([route]); // redirect
-                }
-                return true; // allow navigation
-              })
-            );
-          })
-        )
-    )
-  );
-}
+    anchors.forEach((a) => {
+      const route = a.getAttribute('data-router-link');
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (route) this.router.navigateByUrl(route);
+      });
+    });
+  }
