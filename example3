@@ -1,30 +1,20 @@
-private scrollToError(duration = 400) {
+
+// Track manual scrolling
+hasScrolledManually = false;
+
+ngOnInit() {
+  window.addEventListener('scroll', () => {
+    this.hasScrolledManually = true;
+  });
+}
+
+// Scroll function
+private scrollToError() {
   if (!this.errorSection) return;
 
-  const startY = window.scrollY;
-  const topOfError = this.errorSection.nativeElement.offsetTop;
+  const errorTop = this.errorSection.nativeElement.offsetTop;
   const searchBoxHeight =
     document.getElementById('search-box')?.offsetHeight || 0;
-  const targetY = topOfError - searchBoxHeight - 20;
-  const diff = targetY - startY;
-  let startTime: number | null = null;
 
-  const step = (timestamp: number) => {
-    if (!startTime) startTime = timestamp;
-    const time = timestamp - startTime;
-    const progress = Math.min(time / duration, 1);
-
-    // Simple ease-in-out
-    const ease = progress < 0.5
-      ? 2 * progress * progress
-      : -1 + (4 - 2 * progress) * progress;
-
-    window.scrollTo(0, startY + diff * ease);
-
-    if (progress < 1) {
-      requestAnimationFrame(step);
-    }
-  };
-
-  requestAnimationFrame(step);
+  window.scrollTo(0, errorTop - searchBoxHeight - 20);
 }
