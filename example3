@@ -1,17 +1,30 @@
-private scrollToError() {
+private scrollToError(duration = 400) {
   if (!this.errorSection) return;
 
+  const startY = window.scrollY;
   const topOfError = this.errorSection.nativeElement.offsetTop;
   const searchBoxHeight =
     document.getElementById('search-box')?.offsetHeight || 0;
+  const targetY = topOfError - searchBoxHeight - 20;
+  const diff = targetY - startY;
+  let startTime: number | null = null;
 
-  const scrollTarget = topOfError - searchBoxHeight - 20;
+  const step = (timestamp: number) => {
+    if (!startTime) startTime = timestamp;
+    const time = timestamp - startTime;
+    const progress = Math.min(time / duration, 1);
 
-  // Use smooth scroll but without attaching persistent event listeners
-  try {
-    window.scrollTo({ top: scrollTarget, behavior: 'smooth' });
-  } catch {
-    // Fallback if smooth scroll causes issues
-    window.scrollTo(0, scrollTarget);
-  }
+    // Simple ease-in-out
+    const ease = progress < 0.5
+      ? 2 * progress * progress
+      : -1 + (4 - 2 * progress) * progress;
+
+    window.scrollTo(0, startY + diff * ease);
+
+    if (progress < 1) {
+      requestAnimationFrame(step);
+    }
+  };
+
+  requestAnimationFrame(step);
 }
