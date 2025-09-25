@@ -1,23 +1,15 @@
-  ngAfterViewInit() {
-    const container: HTMLElement = this.el.nativeElement.querySelector('div');
-    const anchors = container.querySelectorAll('a');
+ @ViewChild('errorSection') errorSection!: ElementRef;
 
-    anchors.forEach((a) => {
-      const href = a.getAttribute('href');
-      if (!href) return;
+  // call this whenever error happens
+  scrollToError() {
+    if (this.errorSection) {
+      const topOfError = this.errorSection.nativeElement.offsetTop;
+      const searchBoxHeight = document.getElementById('search-box')?.offsetHeight || 0;
 
-      a.addEventListener('click', (event) => {
-        event.preventDefault();
-
-        // normalize: [medical] → medical
-        const cleanRoute = href.replace(/^\[|\]$/g, '');
-
-        // add slash if missing
-        const finalRoute = cleanRoute.startsWith('/')
-          ? cleanRoute
-          : '/' + cleanRoute;
-
-        this.router.navigateByUrl(finalRoute);
+      window.scrollTo({
+        top: topOfError - searchBoxHeight - 20, // 20px padding
+        behavior: 'smooth'
       });
-    });
+    }
   }
+}
