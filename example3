@@ -1,15 +1,24 @@
- @ViewChild('errorSection') errorSection!: ElementRef;
+private scrollToError() {
+  if (this.errorSection) {
+    const topOfError = this.errorSection.nativeElement.offsetTop;
+    const searchBoxHeight =
+      document.getElementById('search-box')?.offsetHeight || 0;
 
-  // call this whenever error happens
-  scrollToError() {
-    if (this.errorSection) {
-      const topOfError = this.errorSection.nativeElement.offsetTop;
-      const searchBoxHeight = document.getElementById('search-box')?.offsetHeight || 0;
+    const scrollOptions: ScrollToOptions = {
+      top: topOfError - searchBoxHeight - 20,
+      behavior: 'smooth'
+    };
 
-      window.scrollTo({
-        top: topOfError - searchBoxHeight - 20, // 20px padding
-        behavior: 'smooth'
-      });
-    }
+    const handleUserScroll = () => {
+      // user scrolled manually, stop the smooth animation by jumping to current position
+      window.scrollTo({ top: window.scrollY, behavior: 'auto' });
+      window.removeEventListener('wheel', handleUserScroll, { passive: true });
+      window.removeEventListener('touchstart', handleUserScroll, { passive: true });
+    };
+
+    window.addEventListener('wheel', handleUserScroll, { passive: true });
+    window.addEventListener('touchstart', handleUserScroll, { passive: true });
+
+    window.scrollTo(scrollOptions);
   }
 }
