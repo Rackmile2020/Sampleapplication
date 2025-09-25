@@ -1,20 +1,42 @@
-
-// Track manual scrolling
-hasScrolledManually = false;
-
-ngOnInit() {
-  window.addEventListener('scroll', () => {
-    this.hasScrolledManually = true;
-  });
+onSearch() {
+  if (!this.hasMatches()) {
+    if (!this.hasScrolledToError) {
+      setTimeout(() => {
+        this.scrollToError();
+        this.hasScrolledToError = true;
+        this.listenForUserScrollOnce();
+      });
+    }
+  } else {
+    this.hasScrolledToError = false; // reset for next no-match
+  }
 }
 
-// Scroll function
 private scrollToError() {
-  if (!this.errorSection) return;
+  const errorElement = document.getElementById('error-section');
+  if (!errorElement) return;
 
-  const errorTop = this.errorSection.nativeElement.offsetTop;
   const searchBoxHeight =
     document.getElementById('search-box')?.offsetHeight || 0;
 
-  window.scrollTo(0, errorTop - searchBoxHeight - 20);
+  const errorTop = errorElement.getBoundingClientRect().top + window.scrollY;
+
+  window.scrollTo({
+    top: errorTop - searchBoxHeight - 20,
+    behavior: 'smooth'
+  });
+}
+
+private listenForUserScrollOnce() {
+  const stop = () => {
+    this.hasScrolledToError = true; // prevent re-scroll
+    window.removeEventListener('wheel', stop);
+    window.removeEventListener('touchstart', stop);
+    window.removeEventListener('keydown', stop);
+  };
+
+  // attach temporary listeners
+  window.addEventListener('wheel', stop, { passive: true });
+  window.addEventListener('touchstart', stop, { passive: true });
+  window.addEventListener('keydown', stop);
 }
