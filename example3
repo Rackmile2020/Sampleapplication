@@ -1,24 +1,17 @@
 private scrollToError() {
-  if (this.errorSection) {
-    const topOfError = this.errorSection.nativeElement.offsetTop;
-    const searchBoxHeight =
-      document.getElementById('search-box')?.offsetHeight || 0;
+  if (!this.errorSection) return;
 
-    const scrollOptions: ScrollToOptions = {
-      top: topOfError - searchBoxHeight - 20,
-      behavior: 'smooth'
-    };
+  const topOfError = this.errorSection.nativeElement.offsetTop;
+  const searchBoxHeight =
+    document.getElementById('search-box')?.offsetHeight || 0;
 
-    const handleUserScroll = () => {
-      // user scrolled manually, stop the smooth animation by jumping to current position
-      window.scrollTo({ top: window.scrollY, behavior: 'auto' });
-      window.removeEventListener('wheel', handleUserScroll, { passive: true });
-      window.removeEventListener('touchstart', handleUserScroll, { passive: true });
-    };
+  const scrollTarget = topOfError - searchBoxHeight - 20;
 
-    window.addEventListener('wheel', handleUserScroll, { passive: true });
-    window.addEventListener('touchstart', handleUserScroll, { passive: true });
-
-    window.scrollTo(scrollOptions);
+  // Use smooth scroll but without attaching persistent event listeners
+  try {
+    window.scrollTo({ top: scrollTarget, behavior: 'smooth' });
+  } catch {
+    // Fallback if smooth scroll causes issues
+    window.scrollTo(0, scrollTarget);
   }
 }
