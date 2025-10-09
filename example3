@@ -1,9 +1,63 @@
-This loads your Child 1 remote as a standalone custom element (Angular element) — which means:
+Subject: Technical Analysis: Service Isolation in Angular Custom Element (Child 1 Remote)
 
-Angular bootstraps a completely new application instance inside the web component’s shadow DOM.
+Hi [Manager’s Name],
 
-That app has its own Angular injector, its own zone, and its own DI tree.
+As discussed, I dug deeper into why @shared/share-store-data is not behaving as a singleton when Child 1 remote is integrated as a standalone Angular custom element.
 
-Therefore, ShareStoreDataService in the web component is a separate instance from the host’s.
+Root Cause
 
-💥 → Your singleton @shared/share-store-data no longer applies because it’s not part of the same runtime scope.
+When Angular compiles and loads a remote as a custom element, it creates a new Angular application instance inside the component’s shadow DOM. This bootstrapped app is completely isolated from the host:
+
+Own Angular injector → Separate DI container, so providers are not shared with the host.
+
+Own NgZone → Separate change detection context.
+
+Own DI tree → Even if ShareStoreDataService is provided in root, that “root” is scoped to the custom element’s app, not the host.
+
+This means ShareStoreDataService in the web component ≠ ShareStoreDataService in the host. Each app lifecycle is independent.
+
+Technical Implication
+
+Singleton violation: Host and child each have their own instance of the service.
+
+State divergence: Any shared state (e.g., session data, cached API responses, in-memory flags) is not synchronized across boundaries.
+
+Event bus isolation: RxJS subjects/observables in the host are not accessible to the custom element’s injector tree.
+
+Options for Resolution
+
+Cross-App Communication Bridge
+
+Use postMessage, CustomEvent, or a dedicated JS bridge to exchange messages between host and element.
+
+Could wrap an RxJS subject at the host level and expose it to the element via DOM events.
+
+Pros: Keeps current deployment model.
+
+Cons: Extra serialization layer, more boilerplate.
+
+Shared Storage Mechanism
+
+Store data in localStorage, sessionStorage, or IndexedDB as a central persistence layer.
+
+Services in both host and child would read/write state through this shared medium.
+
+Pros: Simple, no deep Angular refactor.
+
+Cons: No reactive updates unless we build a listener layer.
+
+Module Federation Instead of Angular Elements
+
+Load the remote as an Angular module using Webpack Module Federation.
+
+The remote code then runs inside the host’s DI tree, preserving the singleton nature of @shared/share-store-data.
+
+Pros: True singleton services, seamless DI.
+
+Cons: Higher coupling, requires alignment of Angular versions and shared deps across MFEs.
+
+Recommendation
+
+If shared state consistency is a hard requirement, we should evaluate moving Child 1 remote away from Angular Elements and toward Module Federation integration. If deployment boundaries require the element model, then we need to design a communication bridge or shared storage layer to replicate singleton-like behavior.
+
+I can prepare a proof-of-concept for either approach to validate feasibility.
