@@ -1,19 +1,44 @@
-export const RemoteInitializerGuard: CanMatchFn = async (route, segments) => {
-  const injector = inject(Injector);
-  const navContext = injector.get(NavigationContextService);
+import { Injectable } from '@angular/core';
+import { Router, NavigationEnd } from '@angular/router';
+import { filter } from 'rxjs/operators';
+
+@Injectable({ providedIn: 'root' })
+export class NavigationTrackerService {
+  public previousUrl: string | null = null;
+  public currentUrl: string | null = null;
+
+  constructor(private router: Router) {
+    this.router.events
+      .pipe(filter(event => event instanceof NavigationEnd))
+      .subscribe((event: NavigationEnd) => {
+        this.previousUrl = this.currentUrl;
+        this.currentUrl = event.urlAfterRedirects;
+      });
+  }
+}
+
+
+import { CanMatchFn } from '@angular/router';
+import { loadRemoteEntry } from '@angular-architects/module-federation';
+import { inject } from '@angular/core';
+import { NavigationTrackerService } from './navigation-tracker.service';
+
+export const RemoteInitializerGuard: CanMatchFn = async () => {
+  const tracker = inject(NavigationTrackerService);
 
   const remoteUrl = 'http://localhost:4200/remoteEntry.js';
   const remoteName = 'parentApp';
 
-  if (navContext.fromChild1) {
-    console.log('Coming from child1 — reloading parent remote entry...');
-    // Remove old version
+  const comingFromChild1 =
+    tracker.previousUrl?.startsWith('/child1') ?? false;
+
+  if (comingFromChild1) {
+    console.log('Came from Child1 — reloading parent remote entry...');
+    // Clean old entry if needed
     delete (window as any)[remoteName];
     const script = document.querySelector(`script[src="${remoteUrl}"]`);
     if (script) script.remove();
-
     await loadRemoteEntry(remoteUrl, remoteName);
-    navContext.fromChild1 = false;
   } else if (!(window as any)[remoteName]) {
     console.log('Loading parent remote entry first time...');
     await loadRemoteEntry(remoteUrl, remoteName);
