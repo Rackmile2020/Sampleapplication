@@ -1,16 +1,9 @@
-const sharedMappings = new mf.SharedMappings();
-sharedMappings.register(
-  path.join(__dirname, 'tsconfig.json'),
-  [
-    '@shared/hotspots-realign',
-    '@shared/share-store-data',
-    '@coverage/referrals/skeleton'
-  ]
-);
+This loads your Child 1 remote as a standalone custom element (Angular element) — which means:
 
+Angular bootstraps a completely new application instance inside the web component’s shadow DOM.
 
-"paths": {
-  "@shared/hotspots-realign": ["src/app/mpa/shared/hotspots-realign/hotspots-realign.module.ts"],
-  "@shared/share-store-data": ["src/app/mpa/shared/data/service/share-store-data.service.ts"],
-  "@coverage/referrals/skeleton": ["src/app/mpa/coverage/referrals/skeleton/skeleton.module.ts"]
-}
+That app has its own Angular injector, its own zone, and its own DI tree.
+
+Therefore, ShareStoreDataService in the web component is a separate instance from the host’s.
+
+💥 → Your singleton @shared/share-store-data no longer applies because it’s not part of the same runtime scope.
