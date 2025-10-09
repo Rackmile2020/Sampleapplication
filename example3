@@ -1,1 +1,23 @@
-Sample
+export const RemoteInitializerGuard: CanMatchFn = async (route, segments) => {
+  const injector = inject(Injector);
+  const navContext = injector.get(NavigationContextService);
+
+  const remoteUrl = 'http://localhost:4200/remoteEntry.js';
+  const remoteName = 'parentApp';
+
+  if (navContext.fromChild1) {
+    console.log('Coming from child1 — reloading parent remote entry...');
+    // Remove old version
+    delete (window as any)[remoteName];
+    const script = document.querySelector(`script[src="${remoteUrl}"]`);
+    if (script) script.remove();
+
+    await loadRemoteEntry(remoteUrl, remoteName);
+    navContext.fromChild1 = false;
+  } else if (!(window as any)[remoteName]) {
+    console.log('Loading parent remote entry first time...');
+    await loadRemoteEntry(remoteUrl, remoteName);
+  }
+
+  return true;
+};
