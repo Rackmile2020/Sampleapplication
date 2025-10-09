@@ -1,17 +1,16 @@
+const sharedMappings = new mf.SharedMappings();
+sharedMappings.register(
+  path.join(__dirname, 'tsconfig.json'),
+  [
+    '@shared/hotspots-realign',
+    '@shared/share-store-data',
+    '@coverage/referrals/skeleton'
+  ]
+);
 
-  @ViewChild('firstEl') firstEl!: ElementRef<HTMLButtonElement>;
-  @ViewChild('lastEl') lastEl!: ElementRef<HTMLButtonElement>;
 
-  ngAfterViewInit() {
-    // Optional: focus first element when dialog opens
-    this.firstEl.nativeElement.focus();
-  }
-
-  focusLast() {
-    this.lastEl.nativeElement.focus();
-  }
-
-  focusFirst() {
-    this.firstEl.nativeElement.focus();
-  }
+"paths": {
+  "@shared/hotspots-realign": ["src/app/mpa/shared/hotspots-realign/hotspots-realign.module.ts"],
+  "@shared/share-store-data": ["src/app/mpa/shared/data/service/share-store-data.service.ts"],
+  "@coverage/referrals/skeleton": ["src/app/mpa/coverage/referrals/skeleton/skeleton.module.ts"]
 }
