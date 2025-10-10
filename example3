@@ -1,70 +1,16 @@
-import { loadRemoteEntry } from '@angular-architects/module-federation';
-
-export async function reloadRemoteEntry(remoteUrl: string, remoteName: string) {
-  console.log(`[MFE] Cleaning old remote: ${remoteName}`);
-
-  // 1️⃣ Remove cached module federation state
-  delete (window as any)[remoteName];
-  delete (window as any).__webpack_require__?.f?.remotes?.[remoteName];
-  (window as any).__webpack_init_sharing__ = undefined;
-  (window as any).__webpack_share_scopes__ = {};
-
-  // 2️⃣ Remove existing <script> tag
-  const oldScript = document.querySelector(`script[src="${remoteUrl}"]`);
-  if (oldScript) {
-    oldScript.remove();
-    console.log(`[MFE] Removed old remoteEntry script for ${remoteName}`);
+   return timer(0, 300).pipe( // check every 300ms
+      switchMap(() => {
+        const data = sessionStorage.getItem('userSession');
+        if (data) {
+          return of(true); // ✅ session ready
+        }
+        return of(false);
+      }),
+      filter(ready => ready), // wait until true
+      take(1), // stop once session found
+      catchError(() => {
+        this.router.navigate(['/login']);
+        return of(false);
+      })
+    );
   }
-
-  // 3️⃣ Load fresh remoteEntry
-  console.log(`[MFE] Reloading remote entry: ${remoteUrl}`);
-  await loadRemoteEntry(remoteUrl, remoteName);
-
-  console.log(`[MFE] Reload complete for ${remoteName}`);
-}
-import { CanMatchFn, Router } from '@angular/router';
-import { inject } from '@angular/core';
-import { reloadRemoteEntry } from './reload-remote-entry'; // the function above
-
-export const RemoteInitializerGuard: CanMatchFn = async () => {
-  const router = inject(Router);
-
-  // Detect if user is coming from a child app
-  if (router.url.startsWith('/child1')) {
-    console.log('Came from child1, reloading parent MFE...');
-    await reloadRemoteEntry('http://localhost:4200/remoteEntry.js', 'parentApp');
-  } else {
-    // Load only if not loaded before
-    if (!(window as any)['parentApp']) {
-      console.log('Loading parent MFE first time...');
-      await loadRemoteEntry('http://localhost:4200/remoteEntry.js', 'parentApp');
-    }
-  }
-
-  return true;
-};
-
-
-
-asasasas
-
-import { loadRemoteEntry } from '@angular-architects/module-federation';
-
-export async function reloadRemoteEntry(remoteUrl: string, remoteName: string) {
-  // 🧹 Step 1: Clean up existing Webpack caches
-  delete (window as any)[remoteName];
-  delete (window as any).__webpack_require__.f.remotes[remoteName];
-  delete (window as any).__webpack_share_scopes__;
-
-  // 🧼 Step 2: Remove any existing script tag
-  const oldScript = document.querySelector(`script[src="${remoteUrl}"]`);
-  if (oldScript) {
-    oldScript.remove();
-    console.log(`[MFE] Removed existing remoteEntry for ${remoteName}`);
-  }
-
-  // 🆕 Step 3: Load again
-  console.log(`[MFE] Reloading remote entry: ${remoteUrl}`);
-  await loadRemoteEntry(remoteUrl, remoteName);
-  console.log(`[MFE] Reload complete for ${remoteName}`);
-}
