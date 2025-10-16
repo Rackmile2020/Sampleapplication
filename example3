@@ -18,7 +18,7 @@ export class BackDetectorService {
         const trigger = event.navigationTrigger;
         const currentUrl = event.url;
 
-        // Initialize history on first navigation or reload
+        // Initialize history on first load
         if (this.currentIndex === -1) {
           this.urlHistory.push(currentUrl);
           this.currentIndex = 0;
@@ -27,14 +27,8 @@ export class BackDetectorService {
         }
 
         if (trigger === 'popstate') {
-          // Back/forward navigation
-          let existingIndex = this.urlHistory.indexOf(currentUrl);
-
-          // If the URL is not in stack (deep link), push it
-          if (existingIndex === -1) {
-            this.urlHistory.push(currentUrl);
-            existingIndex = this.urlHistory.length - 1;
-          }
+          // Back/forward click
+          const existingIndex = this.urlHistory.lastIndexOf(currentUrl);
 
           if (existingIndex < this.currentIndex) {
             // 🔹 Back detected
@@ -45,19 +39,18 @@ export class BackDetectorService {
             this.backNavSubject.next(false);
           }
 
-          this.currentIndex = existingIndex;
+          // Update pointer to last occurrence
+          this.currentIndex = existingIndex >= 0 ? existingIndex : this.currentIndex;
         } else {
-          // Normal navigation (router.navigate, click, etc.)
+          // Normal navigation (router.navigate, link click)
           if (this.currentIndex < this.urlHistory.length - 1) {
             // Remove forward history
             this.urlHistory = this.urlHistory.slice(0, this.currentIndex + 1);
           }
 
-          // Avoid duplicates
-          if (this.urlHistory[this.currentIndex] !== currentUrl) {
-            this.urlHistory.push(currentUrl);
-            this.currentIndex = this.urlHistory.length - 1;
-          }
+          // 🔹 Always push new entry, even if URL exists before
+          this.urlHistory.push(currentUrl);
+          this.currentIndex = this.urlHistory.length - 1;
 
           this.backNavSubject.next(false);
         }
