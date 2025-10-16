@@ -1,3 +1,4 @@
+///
 import { Injectable } from '@angular/core';
 import { Router, NavigationStart } from '@angular/router';
 import { BehaviorSubject } from 'rxjs';
@@ -18,7 +19,7 @@ export class BackDetectorService {
         const trigger = event.navigationTrigger;
         const currentUrl = event.url;
 
-        // Initialize history on first load
+        // Initialize first URL
         if (this.currentIndex === -1) {
           this.urlHistory.push(currentUrl);
           this.currentIndex = 0;
@@ -27,28 +28,34 @@ export class BackDetectorService {
         }
 
         if (trigger === 'popstate') {
-          // Back/forward click
-          const existingIndex = this.urlHistory.lastIndexOf(currentUrl);
-
-          if (existingIndex < this.currentIndex) {
-            // 🔹 Back detected
-            this.backNavSubject.next(true);
-            console.log('⬅️ Browser BACK detected:', currentUrl);
-          } else {
-            // Forward or same
-            this.backNavSubject.next(false);
+          // Find the last occurrence before currentIndex
+          let lastIndex = -1;
+          for (let i = this.currentIndex - 1; i >= 0; i--) {
+            if (this.urlHistory[i] === currentUrl) {
+              lastIndex = i;
+              break;
+            }
           }
 
-          // Update pointer to last occurrence
-          this.currentIndex = existingIndex >= 0 ? existingIndex : this.currentIndex;
+          if (lastIndex >= 0) {
+            // Back detected
+            this.backNavSubject.next(true);
+            console.log('⬅️ Browser BACK detected:', currentUrl);
+            this.currentIndex = lastIndex;
+          } else {
+            // Forward or deep link not in history
+            this.backNavSubject.next(false);
+            this.urlHistory.push(currentUrl);
+            this.currentIndex = this.urlHistory.length - 1;
+          }
         } else {
-          // Normal navigation (router.navigate, link click)
+          // Normal navigation
           if (this.currentIndex < this.urlHistory.length - 1) {
             // Remove forward history
             this.urlHistory = this.urlHistory.slice(0, this.currentIndex + 1);
           }
 
-          // 🔹 Always push new entry, even if URL exists before
+          // Always push as new entry to handle revisits
           this.urlHistory.push(currentUrl);
           this.currentIndex = this.urlHistory.length - 1;
 
