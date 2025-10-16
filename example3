@@ -16,45 +16,47 @@ export class BackDetectorService {
         const trigger = event.navigationTrigger;
         const currentUrl = event.url;
 
-        // Always push first URL if stack is empty
+        // Push first URL if stack is empty
         if (!this.urlHistory.length) {
           this.urlHistory.push(currentUrl);
         }
 
         const lastIndex = this.urlHistory.lastIndexOf(currentUrl);
 
-        // Detect back click:
-        // 1. popstate triggered
-        // 2. current URL exists in history (could be first back click)
         if (trigger === 'popstate' && lastIndex > 0) {
+          // Browser back detected
           this.backNavSubject.next(true);
           console.log('⬅️ Browser BACK detected:', currentUrl);
 
-          // Remove all URLs ahead of current
+          // Remove URLs ahead of current
           this.urlHistory = this.urlHistory.slice(0, lastIndex + 1);
-
-          // Reset flag shortly after
-          setTimeout(() => this.backNavSubject.next(false), 200);
         } else {
-          // Normal navigation or first-time forward
+          // Normal forward or imperative navigation
           if (this.urlHistory[this.urlHistory.length - 1] !== currentUrl) {
             this.urlHistory.push(currentUrl);
           }
-          this.backNavSubject.next(false);
+
+          // Reset back flag if not a popstate
+          if (trigger !== 'popstate') {
+            this.backNavSubject.next(false);
+          }
         }
       });
   }
 
+  /** True only during a back navigation moment */
   public isBackNavigation(): boolean {
     return this.backNavSubject.getValue();
   }
 
+  /** Previous URL in history */
   public getPreviousUrl(): string | null {
     return this.urlHistory.length > 1
       ? this.urlHistory[this.urlHistory.length - 2]
       : null;
   }
 
+  /** Current URL */
   public getCurrentUrl(): string | null {
     return this.urlHistory.length
       ? this.urlHistory[this.urlHistory.length - 1]
