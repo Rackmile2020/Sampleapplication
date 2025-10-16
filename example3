@@ -10,6 +10,7 @@ export class BackDetectorService {
 
   private urlHistory: string[] = [];
   private currentIndex = -1;
+  private initialized = false;
 
   constructor(private router: Router) {
     this.router.events
@@ -18,11 +19,20 @@ export class BackDetectorService {
         const trigger = event.navigationTrigger;
         const currentUrl = event.url;
 
+        // ✅ Initialize history with first URL once
+        if (!this.initialized) {
+          this.urlHistory.push(currentUrl);
+          this.currentIndex = 0;
+          this.initialized = true;
+          this.backNavSubject.next(false);
+          return;
+        }
+
         if (trigger === 'popstate') {
           const existingIndex = this.urlHistory.indexOf(currentUrl);
 
           if (existingIndex === -1) {
-            // Deep link: push it to stack
+            // Deep link not in history, add it
             this.urlHistory.push(currentUrl);
             this.currentIndex = this.urlHistory.length - 1;
             this.backNavSubject.next(false);
@@ -30,23 +40,22 @@ export class BackDetectorService {
           }
 
           if (existingIndex < this.currentIndex) {
-            // Back navigation
+            // ⬅️ Back navigation
             this.backNavSubject.next(true);
             console.log('⬅️ Browser BACK detected:', currentUrl);
           } else {
-            // Forward or same
+            // ➡️ Forward or same
             this.backNavSubject.next(false);
           }
 
           this.currentIndex = existingIndex;
         } else {
-          // Normal navigation
+          // Normal navigation (click, routerLink, etc.)
           if (this.currentIndex < this.urlHistory.length - 1) {
-            // Remove forward history
+            // Remove forward history when moving forward again
             this.urlHistory = this.urlHistory.slice(0, this.currentIndex + 1);
           }
 
-          // Avoid duplicate consecutive URLs
           const lastUrl = this.urlHistory[this.urlHistory.length - 1];
           if (lastUrl !== currentUrl) {
             this.urlHistory.push(currentUrl);
@@ -63,12 +72,10 @@ export class BackDetectorService {
     return this.backNavSubject.getValue();
   }
 
-  /** Previous URL in history */
   public getPreviousUrl(): string | null {
     return this.currentIndex > 0 ? this.urlHistory[this.currentIndex - 1] : null;
   }
 
-  /** Current URL */
   public getCurrentUrl(): string | null {
     return this.currentIndex >= 0 ? this.urlHistory[this.currentIndex] : null;
   }
