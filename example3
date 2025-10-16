@@ -17,33 +17,23 @@ export class BackDetectorService {
         const trigger = event.navigationTrigger;
         const currentUrl = event.url;
 
-        // 🔹 First page visit: push into history
-        if (!this.urlHistory.length) {
+        const lastUrl = this.urlHistory[this.urlHistory.length - 1];
+
+        // 🔹 Normal navigation (push into stack if new)
+        if (lastUrl !== currentUrl) {
           this.urlHistory.push(currentUrl);
-          return;
         }
 
-        const lastIndex = this.urlHistory.lastIndexOf(currentUrl);
-
-        // 🔹 Detect browser back click
-        // If the URL exists earlier in stack, or it's the previous one
-        if (trigger === 'popstate' && lastIndex < this.urlHistory.length - 1) {
+        // 🔹 Detect back click
+        if (trigger === 'popstate') {
           this.backNavSubject.next(true);
           console.log('⬅️ Browser BACK detected:', currentUrl);
 
-          // Remove all URLs ahead of current to maintain stack
-          this.urlHistory = this.urlHistory.slice(0, lastIndex + 1);
+          // Remove last URL from stack to keep history correct
+          this.urlHistory.pop();
         } else {
-          // Normal navigation or forward
-          const lastUrl = this.urlHistory[this.urlHistory.length - 1];
-          if (lastUrl !== currentUrl) {
-            this.urlHistory.push(currentUrl);
-          }
-
-          // Reset back flag if not a back
-          if (trigger !== 'popstate') {
-            this.backNavSubject.next(false);
-          }
+          // Reset back flag for normal navigation
+          this.backNavSubject.next(false);
         }
       });
   }
