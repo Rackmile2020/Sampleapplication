@@ -21,40 +21,54 @@ export class BackDetectorService {
         if (trigger === 'popstate') {
           const existingIndex = this.urlHistory.indexOf(currentUrl);
 
-          if (existingIndex >= 0 && existingIndex < this.currentIndex) {
+          if (existingIndex === -1) {
+            // Deep link: push it to stack
+            this.urlHistory.push(currentUrl);
+            this.currentIndex = this.urlHistory.length - 1;
+            this.backNavSubject.next(false);
+            return;
+          }
+
+          if (existingIndex < this.currentIndex) {
             // Back navigation
             this.backNavSubject.next(true);
             console.log('⬅️ Browser BACK detected:', currentUrl);
           } else {
-            // Forward or same page
+            // Forward or same
             this.backNavSubject.next(false);
           }
 
-          this.currentIndex = existingIndex >= 0 ? existingIndex : this.currentIndex;
+          this.currentIndex = existingIndex;
         } else {
           // Normal navigation
           if (this.currentIndex < this.urlHistory.length - 1) {
-            // Remove forward URLs
+            // Remove forward history
             this.urlHistory = this.urlHistory.slice(0, this.currentIndex + 1);
           }
 
-          // Add current URL to history
-          this.urlHistory.push(currentUrl);
-          this.currentIndex = this.urlHistory.length - 1;
+          // Avoid duplicate consecutive URLs
+          const lastUrl = this.urlHistory[this.urlHistory.length - 1];
+          if (lastUrl !== currentUrl) {
+            this.urlHistory.push(currentUrl);
+            this.currentIndex = this.urlHistory.length - 1;
+          }
 
           this.backNavSubject.next(false);
         }
       });
   }
 
+  /** True only during a back navigation moment */
   public isBackNavigation(): boolean {
     return this.backNavSubject.getValue();
   }
 
+  /** Previous URL in history */
   public getPreviousUrl(): string | null {
     return this.currentIndex > 0 ? this.urlHistory[this.currentIndex - 1] : null;
   }
 
+  /** Current URL */
   public getCurrentUrl(): string | null {
     return this.currentIndex >= 0 ? this.urlHistory[this.currentIndex] : null;
   }
