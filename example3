@@ -9,7 +9,7 @@ export class BackDetectorService {
   public backNav$ = this.backNavSubject.asObservable();
 
   private urlHistory: string[] = [];
-  private currentIndex = -1; // pointer in the history stack
+  private currentIndex = -1;
 
   constructor(private router: Router) {
     this.router.events
@@ -19,28 +19,29 @@ export class BackDetectorService {
         const currentUrl = event.url;
 
         if (trigger === 'popstate') {
-          // Browser back or forward
           const existingIndex = this.urlHistory.indexOf(currentUrl);
-          if (existingIndex < this.currentIndex) {
-            // Moving back
+
+          if (existingIndex >= 0 && existingIndex < this.currentIndex) {
+            // Back navigation
             this.backNavSubject.next(true);
             console.log('⬅️ Browser BACK detected:', currentUrl);
           } else {
+            // Forward or same page
             this.backNavSubject.next(false);
           }
+
           this.currentIndex = existingIndex >= 0 ? existingIndex : this.currentIndex;
         } else {
           // Normal navigation
-          // Remove forward history if any
           if (this.currentIndex < this.urlHistory.length - 1) {
+            // Remove forward URLs
             this.urlHistory = this.urlHistory.slice(0, this.currentIndex + 1);
           }
 
-          // Add new URL
+          // Add current URL to history
           this.urlHistory.push(currentUrl);
           this.currentIndex = this.urlHistory.length - 1;
 
-          // Reset back flag
           this.backNavSubject.next(false);
         }
       });
