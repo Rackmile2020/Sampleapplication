@@ -1,1 +1,49 @@
 
+import { Injectable } from '@angular/core';
+import { Router, NavigationStart } from '@angular/router';
+import { BehaviorSubject } from 'rxjs';
+import { filter } from 'rxjs/operators';
+
+@Injectable({ providedIn: 'root' })
+export class BackDetectorService {
+  private backNavSubject = new BehaviorSubject<boolean>(false);
+  public readonly backNav$ = this.backNavSubject.asObservable();
+
+  private prevUrl: string | null = null;
+  private currentUrl: string | null = null;
+
+  constructor(private router: Router) {
+    this.router.events
+      .pipe(filter(event => event instanceof NavigationStart))
+      .subscribe((event: NavigationStart & { navigationTrigger?: string }) => {
+        // Track URL history
+        this.prevUrl = this.currentUrl;
+        this.currentUrl = event.url;
+
+        // 🔹 Detect browser back/forward via Angular router only
+        if (event.navigationTrigger === 'popstate') {
+          console.log('⬅️ Back or Forward button clicked');
+          this.backNavSubject.next(true);
+
+          // Reset flag after short delay
+          setTimeout(() => this.backNavSubject.next(false), 200);
+        } else {
+          // Normal navigation — reset
+          this.backNavSubject.next(false);
+        }
+      });
+  }
+
+  /** Returns true only during a back/forward navigation */
+  public isBackNavigation(): boolean {
+    return this.backNavSubject.getValue();
+  }
+
+  public getPreviousUrl(): string | null {
+    return this.prevUrl;
+  }
+
+  public getCurrentUrl(): string | null {
+    return this.currentUrl;
+  }
+}
