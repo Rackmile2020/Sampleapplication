@@ -1,1 +1,38 @@
 
+
+@Injectable({ providedIn: 'root' })
+export class BackDetectorService {
+  private backNavSubject = new BehaviorSubject<boolean>(false);
+  public readonly backNav$ = this.backNavSubject.asObservable();
+
+  constructor(private router: Router) {
+    // Angular Router popstate detection
+    const routerBack$ = this.router.events.pipe(
+      filter(event => event instanceof NavigationStart),
+      filter((event: any) => event.navigationTrigger === 'popstate'),
+      mapTo(true)
+    );
+
+    // Native browser popstate (extra reliability)
+    const browserBack$ = fromEvent(window, 'popstate').pipe(mapTo(true));
+
+    // Merge both sources
+    merge(routerBack$, browserBack$).subscribe(() => {
+      this.backNavSubject.next(true);
+      console.log('⬅️ Back detected globally');
+
+      // Auto-reset after short delay so flag doesn’t stay true forever
+      setTimeout(() => this.backNavSubject.next(false), 300);
+    });
+  }
+
+  /** Check latest back navigation state (sync) */
+  public isBackNavigation(): boolean {
+    return this.backNavSubject.getValue();
+  }
+}
+
+ if (this.backService.isBackNavigation()) {
+      console.log('⛔ Skipping action because of browser back');
+      return;
+    }
