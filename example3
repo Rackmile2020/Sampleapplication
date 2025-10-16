@@ -9,7 +9,7 @@ export class BackDetectorService {
   public backNav$ = this.backNavSubject.asObservable();
 
   private urlHistory: string[] = [];
-  private lastNavigationWasBack = false;
+  private currentIndex = -1; // pointer in the history stack
 
   constructor(private router: Router) {
     this.router.events
@@ -17,26 +17,31 @@ export class BackDetectorService {
       .subscribe((event: NavigationStart & { navigationTrigger?: string }) => {
         const trigger = event.navigationTrigger;
         const currentUrl = event.url;
-        const lastUrl = this.urlHistory[this.urlHistory.length - 1];
 
-        // Normal navigation (push if new)
-        if (lastUrl !== currentUrl) {
-          this.urlHistory.push(currentUrl);
-        }
-
-        // Detect back only if trigger is popstate AND previous navigation was not back to same URL
-        if (trigger === 'popstate' && !this.lastNavigationWasBack) {
-          this.backNavSubject.next(true);
-          console.log('⬅️ Browser BACK detected:', currentUrl);
-
-          // Remove last URL from stack to maintain history
-          this.urlHistory.pop();
-
-          this.lastNavigationWasBack = true;
+        if (trigger === 'popstate') {
+          // Browser back or forward
+          const existingIndex = this.urlHistory.indexOf(currentUrl);
+          if (existingIndex < this.currentIndex) {
+            // Moving back
+            this.backNavSubject.next(true);
+            console.log('⬅️ Browser BACK detected:', currentUrl);
+          } else {
+            this.backNavSubject.next(false);
+          }
+          this.currentIndex = existingIndex >= 0 ? existingIndex : this.currentIndex;
         } else {
-          // Normal forward navigation or repeated visit
+          // Normal navigation
+          // Remove forward history if any
+          if (this.currentIndex < this.urlHistory.length - 1) {
+            this.urlHistory = this.urlHistory.slice(0, this.currentIndex + 1);
+          }
+
+          // Add new URL
+          this.urlHistory.push(currentUrl);
+          this.currentIndex = this.urlHistory.length - 1;
+
+          // Reset back flag
           this.backNavSubject.next(false);
-          this.lastNavigationWasBack = false;
         }
       });
   }
@@ -46,14 +51,10 @@ export class BackDetectorService {
   }
 
   public getPreviousUrl(): string | null {
-    return this.urlHistory.length > 1
-      ? this.urlHistory[this.urlHistory.length - 2]
-      : null;
+    return this.currentIndex > 0 ? this.urlHistory[this.currentIndex - 1] : null;
   }
 
   public getCurrentUrl(): string | null {
-    return this.urlHistory.length
-      ? this.urlHistory[this.urlHistory.length - 1]
-      : null;
+    return this.currentIndex >= 0 ? this.urlHistory[this.currentIndex] : null;
   }
 }
