@@ -7,7 +7,6 @@ import { filter } from 'rxjs/operators';
 export class BackDetectorService {
   private backNavSubject = new BehaviorSubject<boolean>(false);
   public backNav$ = this.backNavSubject.asObservable();
-
   private urlHistory: string[] = [];
 
   constructor(private router: Router) {
@@ -17,23 +16,28 @@ export class BackDetectorService {
         const trigger = event.navigationTrigger;
         const currentUrl = event.url;
 
-        const lastIndex = this.urlHistory.lastIndexOf(currentUrl);
-        const previousUrl = this.urlHistory.length ? this.urlHistory[this.urlHistory.length - 1] : null;
+        // Always push first URL if stack is empty
+        if (!this.urlHistory.length) {
+          this.urlHistory.push(currentUrl);
+        }
 
-        // Only consider back click
-        if (trigger === 'popstate' && lastIndex >= 0 && lastIndex < this.urlHistory.length - 1) {
-          // 🔹 Browser back detected
+        const lastIndex = this.urlHistory.lastIndexOf(currentUrl);
+
+        // Detect back click:
+        // 1. popstate triggered
+        // 2. current URL exists in history (could be first back click)
+        if (trigger === 'popstate' && lastIndex > 0) {
           this.backNavSubject.next(true);
           console.log('⬅️ Browser BACK detected:', currentUrl);
 
-          // Remove all URLs ahead of current in stack
+          // Remove all URLs ahead of current
           this.urlHistory = this.urlHistory.slice(0, lastIndex + 1);
 
           // Reset flag shortly after
           setTimeout(() => this.backNavSubject.next(false), 200);
         } else {
-          // Normal navigation or forward click — add to stack
-          if (!this.urlHistory.length || this.urlHistory[this.urlHistory.length - 1] !== currentUrl) {
+          // Normal navigation or first-time forward
+          if (this.urlHistory[this.urlHistory.length - 1] !== currentUrl) {
             this.urlHistory.push(currentUrl);
           }
           this.backNavSubject.next(false);
@@ -41,18 +45,19 @@ export class BackDetectorService {
       });
   }
 
-  /** True only during a back navigation moment */
   public isBackNavigation(): boolean {
     return this.backNavSubject.getValue();
   }
 
-  /** Previous URL in history */
   public getPreviousUrl(): string | null {
-    return this.urlHistory.length > 1 ? this.urlHistory[this.urlHistory.length - 2] : null;
+    return this.urlHistory.length > 1
+      ? this.urlHistory[this.urlHistory.length - 2]
+      : null;
   }
 
-  /** Current URL */
   public getCurrentUrl(): string | null {
-    return this.urlHistory.length ? this.urlHistory[this.urlHistory.length - 1] : null;
+    return this.urlHistory.length
+      ? this.urlHistory[this.urlHistory.length - 1]
+      : null;
   }
 }
