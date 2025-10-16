@@ -1,4 +1,3 @@
-
 import { Injectable } from '@angular/core';
 import { Router, NavigationStart } from '@angular/router';
 import { BehaviorSubject } from 'rxjs';
@@ -7,43 +6,53 @@ import { filter } from 'rxjs/operators';
 @Injectable({ providedIn: 'root' })
 export class BackDetectorService {
   private backNavSubject = new BehaviorSubject<boolean>(false);
-  public readonly backNav$ = this.backNavSubject.asObservable();
+  public backNav$ = this.backNavSubject.asObservable();
 
-  private prevUrl: string | null = null;
-  private currentUrl: string | null = null;
+  private urlHistory: string[] = [];
 
   constructor(private router: Router) {
     this.router.events
-      .pipe(filter(event => event instanceof NavigationStart))
+      .pipe(filter(e => e instanceof NavigationStart))
       .subscribe((event: NavigationStart & { navigationTrigger?: string }) => {
-        // Track URL history
-        this.prevUrl = this.currentUrl;
-        this.currentUrl = event.url;
+        const trigger = event.navigationTrigger;
+        const currentUrl = event.url;
 
-        // 🔹 Detect browser back/forward via Angular router only
-        if (event.navigationTrigger === 'popstate') {
-          console.log('⬅️ Back or Forward button clicked');
+        const lastIndex = this.urlHistory.lastIndexOf(currentUrl);
+        const previousUrl = this.urlHistory.length ? this.urlHistory[this.urlHistory.length - 1] : null;
+
+        // Only consider back click
+        if (trigger === 'popstate' && lastIndex >= 0 && lastIndex < this.urlHistory.length - 1) {
+          // 🔹 Browser back detected
           this.backNavSubject.next(true);
+          console.log('⬅️ Browser BACK detected:', currentUrl);
 
-          // Reset flag after short delay
+          // Remove all URLs ahead of current in stack
+          this.urlHistory = this.urlHistory.slice(0, lastIndex + 1);
+
+          // Reset flag shortly after
           setTimeout(() => this.backNavSubject.next(false), 200);
         } else {
-          // Normal navigation — reset
+          // Normal navigation or forward click — add to stack
+          if (!this.urlHistory.length || this.urlHistory[this.urlHistory.length - 1] !== currentUrl) {
+            this.urlHistory.push(currentUrl);
+          }
           this.backNavSubject.next(false);
         }
       });
   }
 
-  /** Returns true only during a back/forward navigation */
+  /** True only during a back navigation moment */
   public isBackNavigation(): boolean {
     return this.backNavSubject.getValue();
   }
 
+  /** Previous URL in history */
   public getPreviousUrl(): string | null {
-    return this.prevUrl;
+    return this.urlHistory.length > 1 ? this.urlHistory[this.urlHistory.length - 2] : null;
   }
 
+  /** Current URL */
   public getCurrentUrl(): string | null {
-    return this.currentUrl;
+    return this.urlHistory.length ? this.urlHistory[this.urlHistory.length - 1] : null;
   }
 }
