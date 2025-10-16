@@ -9,6 +9,7 @@ export class BackDetectorService {
   public backNav$ = this.backNavSubject.asObservable();
 
   private urlHistory: string[] = [];
+  private lastNavigationWasBack = false;
 
   constructor(private router: Router) {
     this.router.events
@@ -16,41 +17,40 @@ export class BackDetectorService {
       .subscribe((event: NavigationStart & { navigationTrigger?: string }) => {
         const trigger = event.navigationTrigger;
         const currentUrl = event.url;
-
         const lastUrl = this.urlHistory[this.urlHistory.length - 1];
 
-        // 🔹 Normal navigation (push into stack if new)
+        // Normal navigation (push if new)
         if (lastUrl !== currentUrl) {
           this.urlHistory.push(currentUrl);
         }
 
-        // 🔹 Detect back click
-        if (trigger === 'popstate') {
+        // Detect back only if trigger is popstate AND previous navigation was not back to same URL
+        if (trigger === 'popstate' && !this.lastNavigationWasBack) {
           this.backNavSubject.next(true);
           console.log('⬅️ Browser BACK detected:', currentUrl);
 
-          // Remove last URL from stack to keep history correct
+          // Remove last URL from stack to maintain history
           this.urlHistory.pop();
+
+          this.lastNavigationWasBack = true;
         } else {
-          // Reset back flag for normal navigation
+          // Normal forward navigation or repeated visit
           this.backNavSubject.next(false);
+          this.lastNavigationWasBack = false;
         }
       });
   }
 
-  /** True only during a back navigation moment */
   public isBackNavigation(): boolean {
     return this.backNavSubject.getValue();
   }
 
-  /** Previous URL in history */
   public getPreviousUrl(): string | null {
     return this.urlHistory.length > 1
       ? this.urlHistory[this.urlHistory.length - 2]
       : null;
   }
 
-  /** Current URL */
   public getCurrentUrl(): string | null {
     return this.urlHistory.length
       ? this.urlHistory[this.urlHistory.length - 1]
