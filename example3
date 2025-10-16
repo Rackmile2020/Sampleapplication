@@ -1,16 +1,36 @@
-   return timer(0, 300).pipe( // check every 300ms
-      switchMap(() => {
-        const data = sessionStorage.getItem('userSession');
-        if (data) {
-          return of(true); // ✅ session ready
-        }
-        return of(false);
-      }),
-      filter(ready => ready), // wait until true
-      take(1), // stop once session found
-      catchError(() => {
-        this.router.navigate(['/login']);
-        return of(false);
-      })
-    );
+import { Injectable } from '@angular/core';
+import { Router, NavigationEnd } from '@angular/router';
+import { filter } from 'rxjs/operators';
+
+@Injectable({ providedIn: 'root' })
+export class HistoryService {
+  private history: string[] = [];
+
+  constructor(private router: Router) {
+    this.router.events
+      .pipe(filter(event => event instanceof NavigationEnd))
+      .subscribe((event: any) => {
+        this.history.push(event.urlAfterRedirects);
+      });
   }
+
+  getPreviousUrl(): string | undefined {
+    return this.history.length > 1
+      ? this.history[this.history.length - 2]
+      : undefined;
+  }
+
+  goBack() {
+    const prev = this.getPreviousUrl();
+    if (prev) {
+      this.router.navigateByUrl(prev);
+    }
+  }
+}
+constructor(private historyService: HistoryService) {}
+
+@HostListener('window:popstate', ['$event'])
+onPopState() {
+  console.log('⬅️ Browser back pressed');
+  this.historyService.goBack();
+}
