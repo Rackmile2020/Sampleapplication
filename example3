@@ -1,43 +1,78 @@
-import { Injectable } from '@angular/core';
-import { Router, NavigationStart } from '@angular/router';
-import { BehaviorSubject } from 'rxjs';
-import { filter } from 'rxjs/operators';
+ng generate service shared/focus-trap
+import { Injectable, Renderer2, RendererFactory2 } from '@angular/core';
 
-@Injectable({ providedIn: 'root' })
-export class BackDetectorService {
-  private backNavSubject = new BehaviorSubject<boolean>(false);
-  public backNav$ = this.backNavSubject.asObservable();
+@Injectable({
+  providedIn: 'root'
+})
+export class FocusTrapService {
+  private renderer: Renderer2;
+  private focusableElements: HTMLElement[] = [];
+  private activeElementBeforeTrap: HTMLElement | null = null;
+  private listenerCleanup: (() => void) | null = null;
 
-  private lastUrl: string | null = null;
-
-  constructor(private router: Router) {
-    this.router.events
-      .pipe(filter(e => e instanceof NavigationStart))
-      .subscribe((event: NavigationStart & { navigationTrigger?: string }) => {
-        const trigger = event.navigationTrigger;
-        const currentUrl = event.url;
-
-        // 🔹 Detect browser back
-        if (trigger === 'popstate') {
-          this.backNavSubject.next(true);
-          console.log('⬅️ Browser BACK detected:', currentUrl);
-        } else {
-          // 🔹 Normal navigation
-          this.backNavSubject.next(false);
-        }
-
-        // 🔹 Update last URL after checking back
-        this.lastUrl = currentUrl;
-      });
+  constructor(private rendererFactory: RendererFactory2) {
+    this.renderer = this.rendererFactory.createRenderer(null, null);
   }
 
-  /** True only during a back navigation moment */
-  public isBackNavigation(): boolean {
-    return this.backNavSubject.getValue();
+  /**
+   * Activate focus trap inside a given element
+   */
+  trapFocus(container: HTMLElement) {
+    this.activeElementBeforeTrap = document.activeElement as HTMLElement;
+
+    // Find all focusable children
+    this.focusableElements = Array.from(
+      container.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      )
+    ) as HTMLElement[];
+
+    // Focus first element
+    if (this.focusableElements.length) {
+      this.focusableElements[0].focus();
+    }
+
+    // Listen to keyboard events
+    this.listenerCleanup = this.renderer.listen(container, 'keydown', (event: KeyboardEvent) => {
+      if (event.key === 'Tab') {
+        this.handleTab(event);
+      } else if (event.key === 'Escape') {
+        // Optionally emit a close event or handle externally
+      }
+    });
   }
 
-  /** Returns the last visited URL */
-  public getLastUrl(): string | null {
-    return this.lastUrl;
+  private handleTab(event: KeyboardEvent) {
+    const first = this.focusableElements[0];
+    const last = this.focusableElements[this.focusableElements.length - 1];
+
+    if (event.shiftKey) {
+      if (document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      }
+    } else {
+      if (document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+  }
+
+  /**
+   * Release focus trap and restore focus
+   */
+  releaseFocus() {
+    if (this.listenerCleanup) {
+      this.listenerCleanup();
+      this.listenerCleanup = null;
+    }
+
+    if (this.activeElementBeforeTrap) {
+      this.activeElementBeforeTrap.focus();
+      this.activeElementBeforeTrap = null;
+    }
+
+    this.focusableElements = [];
   }
 }
