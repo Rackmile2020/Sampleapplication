@@ -2,58 +2,72 @@ import { Injectable, Renderer2, RendererFactory2 } from '@angular/core';
 
 @Injectable({ providedIn: 'root' })
 export class FocusTrapService {
-  private focusableEls: HTMLElement[] = [];
+  private focusableElements: HTMLElement[] = [];
+  private activeElementBeforeTrap: HTMLElement | null = null;
+  private cleanupListener: (() => void) | null = null;
   private renderer: Renderer2;
-  private cleanupFn: (() => void) | null = null;
-  private activeBeforeTrap: HTMLElement | null = null;
 
   constructor(rendererFactory: RendererFactory2) {
     this.renderer = rendererFactory.createRenderer(null, null);
   }
 
   trapFocus(container: HTMLElement, onEscape?: () => void) {
-    this.activeBeforeTrap = document.activeElement as HTMLElement;
+    // Save previously focused element
+    this.activeElementBeforeTrap = document.activeElement as HTMLElement;
 
+    // Ensure dialog container is focusable
     if (!container.hasAttribute('tabindex')) {
       container.setAttribute('tabindex', '-1');
     }
 
-    container.focus(); // Ensure initial focus lands inside dialog
+    // Focus the dialog container
+    container.focus();
 
-    this.focusableEls = Array.from(
+    // Collect all focusable elements inside
+    this.focusableElements = Array.from(
       container.querySelectorAll<HTMLElement>(
         'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
       )
     );
 
-    this.cleanupFn = this.renderer.listen(container, 'keydown', (e: KeyboardEvent) => {
-      if (e.key === 'Tab') this.handleTab(e);
-      if (e.key === 'Escape' && onEscape) onEscape();
+    // Listen for keyboard events
+    this.cleanupListener = this.renderer.listen(container, 'keydown', (event: KeyboardEvent) => {
+      if (event.key === 'Tab') this.handleTab(event);
+      if (event.key === 'Escape' && onEscape) onEscape();
     });
   }
 
   private handleTab(event: KeyboardEvent) {
-    const first = this.focusableEls[0];
-    const last = this.focusableEls[this.focusableEls.length - 1];
+    const first = this.focusableElements[0];
+    const last = this.focusableElements[this.focusableElements.length - 1];
 
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault();
-      first.focus();
+    if (event.shiftKey) {
+      // Shift + Tab
+      if (document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      }
+    } else {
+      // Tab
+      if (document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     }
   }
 
   releaseFocus() {
-    if (this.cleanupFn) {
-      this.cleanupFn();
-      this.cleanupFn = null;
+    if (this.cleanupListener) {
+      this.cleanupListener();
+      this.cleanupListener = null;
     }
 
-    if (this.activeBeforeTrap) {
-      this.activeBeforeTrap.focus();
-      this.activeBeforeTrap = null;
+    // Restore focus
+    if (this.activeElementBeforeTrap) {
+      this.activeElementBeforeTrap.focus();
+      this.activeElementBeforeTrap = null;
     }
+
+    this.focusableElements = [];
   }
 }
