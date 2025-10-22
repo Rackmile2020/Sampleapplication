@@ -1,8 +1,17 @@
-const dialogEl = componentRef.location.nativeElement as HTMLElement;
+  ngAfterViewInit() {
+    // Wait until actually appended to body
+    setTimeout(() => {
+      if (!document.body.contains(this.dialogRef.nativeElement)) return;
 
-Array.from(document.body.children).forEach(child => {
-  // Hide all siblings EXCEPT the dialog and backdrop
-  if (child !== dialogEl && !child.classList.contains('modal-backdrop')) {
-    (child as HTMLElement).setAttribute('aria-hidden', 'true');
+      this.previouslyFocusedEl = document.activeElement as HTMLElement;
+
+      // Create focus trap
+      this.focusTrap = this.focusTrapFactory.create(this.dialogRef.nativeElement);
+
+      // Give browser time to paint, then focus dialog
+      requestAnimationFrame(() => {
+        this.dialogRef.nativeElement.focus();
+        this.focusTrap.focusInitialElementWhenReady();
+      });
+    });
   }
-});
