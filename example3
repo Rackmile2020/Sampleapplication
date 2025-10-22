@@ -1,17 +1,42 @@
-  ngAfterViewInit() {
-    // Wait until actually appended to body
-    setTimeout(() => {
-      if (!document.body.contains(this.dialogRef.nativeElement)) return;
+import { Injectable } from '@angular/core';
+import { Router, NavigationStart, NavigationEnd, Event } from '@angular/router';
+import { BehaviorSubject } from 'rxjs';
+import { filter } from 'rxjs/operators';
 
-      this.previouslyFocusedEl = document.activeElement as HTMLElement;
+@Injectable({ providedIn: 'root' })
+export class BackDetectorService {
+  private backNavSubject = new BehaviorSubject<boolean>(false);
+  public backNav$ = this.backNavSubject.asObservable();
 
-      // Create focus trap
-      this.focusTrap = this.focusTrapFactory.create(this.dialogRef.nativeElement);
+  private lastTrigger: 'popstate' | 'imperative' | 'unknown' = 'unknown';
 
-      // Give browser time to paint, then focus dialog
-      requestAnimationFrame(() => {
-        this.dialogRef.nativeElement.focus();
-        this.focusTrap.focusInitialElementWhenReady();
+  constructor(private router: Router) {
+    this.router.events
+      .pipe(filter((e: Event): e is NavigationStart => e instanceof NavigationStart))
+      .subscribe(event => {
+        const trigger = (event as any).navigationTrigger;
+        if (trigger === 'popstate') {
+          this.lastTrigger = 'popstate';
+          this.backNavSubject.next(true);
+          console.log('⬅️ Back detected:', event.url);
+        } else {
+          this.lastTrigger = 'imperative';
+          this.backNavSubject.next(false);
+        }
       });
-    });
+
+    // 🔹 Reset AFTER navigation completes (not immediately)
+    this.router.events
+      .pipe(filter((e: Event): e is NavigationEnd => e instanceof NavigationEnd))
+      .subscribe(() => {
+        if (this.lastTrigger === 'popstate') {
+          // Keep back = true until guards finish
+          setTimeout(() => this.backNavSubject.next(false), 50);
+        }
+      });
   }
+
+  public isBackNavigation(): boolean {
+    return this.backNavSubject.getValue();
+  }
+}
