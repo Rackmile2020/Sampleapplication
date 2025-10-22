@@ -1,17 +1,9 @@
- // Wait until Angular renders AND element is attached to body
-    requestAnimationFrame(() => {
-      if (!document.body.contains(this.dialogRef.nativeElement)) return;
-
-      this.focusTrap = this.focusTrapFactory.create(this.dialogRef.nativeElement);
-
-      // Wait a tick before moving focus (for dynamic injection timing)
-      setTimeout(() => {
-        this.dialogRef.nativeElement.focus();
-        this.focusTrap.focusInitialElementWhenReady();
-      }, 50);
-    });
-  ngOnDestroy() {
-    if (this.focusTrap) {
-      this.focusTrap.destroy();
-    }
+ close() {
+    this.focusTrap.destroy();
+    this.focusRestorationEl?.focus();
+    this.dialogRef.nativeElement.remove();
+    document.querySelector('.modal-backdrop')?.remove();
+    document.querySelectorAll('[aria-hidden="true"]').forEach(el =>
+      el.removeAttribute('aria-hidden')
+    );
   }
