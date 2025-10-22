@@ -7,8 +7,7 @@ import { filter } from 'rxjs/operators';
 export class BackDetectorService {
   private backNavSubject = new BehaviorSubject<boolean>(false);
   public backNav$ = this.backNavSubject.asObservable();
-
-  private lastTrigger: 'popstate' | 'imperative' | 'unknown' = 'unknown';
+  private lastTrigger: 'popstate' | 'imperative' | null = null;
 
   constructor(private router: Router) {
     this.router.events
@@ -18,20 +17,18 @@ export class BackDetectorService {
         if (trigger === 'popstate') {
           this.lastTrigger = 'popstate';
           this.backNavSubject.next(true);
-          console.log('⬅️ Back detected:', event.url);
         } else {
           this.lastTrigger = 'imperative';
           this.backNavSubject.next(false);
         }
       });
 
-    // 🔹 Reset AFTER navigation completes (not immediately)
     this.router.events
       .pipe(filter((e: Event): e is NavigationEnd => e instanceof NavigationEnd))
       .subscribe(() => {
         if (this.lastTrigger === 'popstate') {
-          // Keep back = true until guards finish
-          setTimeout(() => this.backNavSubject.next(false), 50);
+          // small delay to allow guards/components to finish checking
+          setTimeout(() => this.backNavSubject.next(false), 100);
         }
       });
   }
