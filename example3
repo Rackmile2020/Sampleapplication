@@ -1,75 +1,59 @@
-
 import { Injectable, Renderer2, RendererFactory2 } from '@angular/core';
 
-@Injectable({
-  providedIn: 'root'
-})
+@Injectable({ providedIn: 'root' })
 export class FocusTrapService {
+  private focusableEls: HTMLElement[] = [];
   private renderer: Renderer2;
-  private focusableElements: HTMLElement[] = [];
-  private activeElementBeforeTrap: HTMLElement | null = null;
-  private listenerCleanup: (() => void) | null = null;
+  private cleanupFn: (() => void) | null = null;
+  private activeBeforeTrap: HTMLElement | null = null;
 
-  constructor(private rendererFactory: RendererFactory2) {
-    this.renderer = this.rendererFactory.createRenderer(null, null);
+  constructor(rendererFactory: RendererFactory2) {
+    this.renderer = rendererFactory.createRenderer(null, null);
   }
 
   trapFocus(container: HTMLElement, onEscape?: () => void) {
-    this.activeElementBeforeTrap = document.activeElement as HTMLElement;
+    this.activeBeforeTrap = document.activeElement as HTMLElement;
 
-    // Ensure dialog can be focused
     if (!container.hasAttribute('tabindex')) {
       container.setAttribute('tabindex', '-1');
     }
 
-    // Focus the dialog itself (important for accessibility)
-    container.focus();
+    container.focus(); // Ensure initial focus lands inside dialog
 
-    // Gather all focusable elements inside
-    this.focusableElements = Array.from(
-      container.querySelectorAll(
+    this.focusableEls = Array.from(
+      container.querySelectorAll<HTMLElement>(
         'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
       )
-    ) as HTMLElement[];
+    );
 
-    // Add keyboard listeners
-    this.listenerCleanup = this.renderer.listen(container, 'keydown', (event: KeyboardEvent) => {
-      if (event.key === 'Tab') {
-        this.handleTab(event);
-      } else if (event.key === 'Escape' && onEscape) {
-        onEscape();
-      }
+    this.cleanupFn = this.renderer.listen(container, 'keydown', (e: KeyboardEvent) => {
+      if (e.key === 'Tab') this.handleTab(e);
+      if (e.key === 'Escape' && onEscape) onEscape();
     });
   }
 
   private handleTab(event: KeyboardEvent) {
-    const first = this.focusableElements[0];
-    const last = this.focusableElements[this.focusableElements.length - 1];
+    const first = this.focusableEls[0];
+    const last = this.focusableEls[this.focusableEls.length - 1];
 
-    if (event.shiftKey) {
-      if (document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      }
-    } else {
-      if (document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
     }
   }
 
   releaseFocus() {
-    if (this.listenerCleanup) {
-      this.listenerCleanup();
-      this.listenerCleanup = null;
+    if (this.cleanupFn) {
+      this.cleanupFn();
+      this.cleanupFn = null;
     }
 
-    if (this.activeElementBeforeTrap) {
-      this.activeElementBeforeTrap.focus();
-      this.activeElementBeforeTrap = null;
+    if (this.activeBeforeTrap) {
+      this.activeBeforeTrap.focus();
+      this.activeBeforeTrap = null;
     }
-
-    this.focusableElements = [];
   }
 }
