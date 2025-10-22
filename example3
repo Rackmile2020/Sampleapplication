@@ -1,23 +1,30 @@
 this.router.events
   .pipe(filter(e => e instanceof NavigationStart))
   .subscribe((event: any) => {
-    this.isBack = event.navigationTrigger === 'popstate';
     const currentUrl = event.url;
+    this.isBack = event.navigationTrigger === 'popstate';
 
     if (!this.isBack) {
-      // 🔹 Special case: replace /medical/data with /medical/1/data
       const lastUrl = this.history.length ? this.history[this.history.length - 1] : null;
-      if (lastUrl === '/medical/data' && currentUrl.startsWith('/medical/') && currentUrl.endsWith('/data') && currentUrl !== '/medical/data') {
-        // Replace last URL in history
-        this.history[this.history.length - 1] = currentUrl;
+
+      // 🔹 Special case: forward from /medical/data → /medical/1/data
+      if (lastUrl === '/medical/data' &&
+          currentUrl.startsWith('/medical/') &&
+          currentUrl.endsWith('/data') &&
+          currentUrl !== '/medical/data') {
+        // Instead of keeping /medical/data, mark it to be skipped on back
+        // Push current URL but mark last as skip
+        this.history[this.history.length - 1] = '__skip__' + lastUrl;
+        this.history.push(currentUrl);
       } else {
-        // Normal forward navigation → push to history
         if (!this.history.length || lastUrl !== currentUrl) {
           this.history.push(currentUrl);
         }
       }
     } else {
-      // Browser back → remove last URL
-      this.history.pop();
+      // Browser back
+      if (this.history.length) {
+        this.history.pop();
+      }
     }
   });
