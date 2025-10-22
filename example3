@@ -1,30 +1,59 @@
-this.router.events
-  .pipe(filter(e => e instanceof NavigationStart))
-  .subscribe((event: any) => {
-    const currentUrl = event.url;
-    this.isBack = event.navigationTrigger === 'popstate';
+import { Injectable } from '@angular/core';
+import { Router, NavigationStart } from '@angular/router';
+import { filter } from 'rxjs/operators';
 
-    if (!this.isBack) {
-      const lastUrl = this.history.length ? this.history[this.history.length - 1] : null;
+@Injectable({ providedIn: 'root' })
+export class NavigationHistoryService {
+  private history: string[] = [];
+  private isBack = false;
 
-      // 🔹 Special case: forward from /medical/data → /medical/1/data
-      if (lastUrl === '/medical/data' &&
-          currentUrl.startsWith('/medical/') &&
-          currentUrl.endsWith('/data') &&
-          currentUrl !== '/medical/data') {
-        // Instead of keeping /medical/data, mark it to be skipped on back
-        // Push current URL but mark last as skip
-        this.history[this.history.length - 1] = '__skip__' + lastUrl;
-        this.history.push(currentUrl);
-      } else {
-        if (!this.history.length || lastUrl !== currentUrl) {
-          this.history.push(currentUrl);
+  constructor(private router: Router) {
+    this.router.events
+      .pipe(filter(e => e instanceof NavigationStart))
+      .subscribe((event: any) => {
+        const currentUrl = event.url;
+        this.isBack = event.navigationTrigger === 'popstate';
+
+        if (!this.isBack) {
+          const lastUrl = this.history.length ? this.history[this.history.length - 1] : null;
+
+          // 🔹 Special case: /medical/data → /medical/1/data
+          if (lastUrl === '/medical/data' &&
+              currentUrl.startsWith('/medical/') &&
+              currentUrl.endsWith('/data') &&
+              currentUrl !== '/medical/data') {
+            // Mark last URL to be skipped
+            this.history[this.history.length - 1] = '__skip__' + lastUrl;
+            this.history.push(currentUrl);
+          } else {
+            if (!lastUrl || lastUrl !== currentUrl) {
+              this.history.push(currentUrl);
+            }
+          }
+        } else {
+          // Browser back → do not remove yet, we’ll skip if needed
+          // Mark popstate for CanActivate / component
         }
-      }
-    } else {
-      // Browser back
-      if (this.history.length) {
-        this.history.pop();
+      });
+  }
+
+  isBackNavigation(): boolean {
+    return this.isBack;
+  }
+
+  /** Returns previous URL, skipping any marked as __skip__ */
+  getPreviousUrl(): string | null {
+    for (let i = this.history.length - 1; i >= 0; i--) {
+      const url = this.history[i];
+      if (!url.startsWith('__skip__')) {
+        return url;
       }
     }
-  });
+    return null;
+  }
+
+  /** Remove the current URL from history after navigating back */
+  popCurrentUrl() {
+    this.history.pop();
+  }
+}
