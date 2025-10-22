@@ -10,3 +10,8 @@
         this.focusTrap.focusInitialElementWhenReady();
       }, 50);
     });
+  ngOnDestroy() {
+    if (this.focusTrap) {
+      this.focusTrap.destroy();
+    }
+  }
