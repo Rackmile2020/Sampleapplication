@@ -1,39 +1,35 @@
 import { Injectable } from '@angular/core';
-import { Router, NavigationStart, NavigationEnd, Event } from '@angular/router';
-import { BehaviorSubject } from 'rxjs';
+import { Router, NavigationStart } from '@angular/router';
 import { filter } from 'rxjs/operators';
 
 @Injectable({ providedIn: 'root' })
-export class BackDetectorService {
-  private backNavSubject = new BehaviorSubject<boolean>(false);
-  public backNav$ = this.backNavSubject.asObservable();
-  private lastTrigger: 'popstate' | 'imperative' | null = null;
+export class NavigationHistoryService {
+  private history: string[] = [];
+  private isBack = false;
 
   constructor(private router: Router) {
     this.router.events
-      .pipe(filter((e: Event): e is NavigationStart => e instanceof NavigationStart))
-      .subscribe(event => {
-        const trigger = (event as any).navigationTrigger;
-        if (trigger === 'popstate') {
-          this.lastTrigger = 'popstate';
-          this.backNavSubject.next(true);
-        } else {
-          this.lastTrigger = 'imperative';
-          this.backNavSubject.next(false);
-        }
-      });
+      .pipe(filter(e => e instanceof NavigationStart))
+      .subscribe((event: any) => {
+        this.isBack = event.navigationTrigger === 'popstate';
 
-    this.router.events
-      .pipe(filter((e: Event): e is NavigationEnd => e instanceof NavigationEnd))
-      .subscribe(() => {
-        if (this.lastTrigger === 'popstate') {
-          // small delay to allow guards/components to finish checking
-          setTimeout(() => this.backNavSubject.next(false), 100);
+        if (!this.isBack) {
+          // Only push forward navigations to history
+          if (!this.history.length || this.history[this.history.length - 1] !== event.url) {
+            this.history.push(event.url);
+          }
+        } else {
+          // popstate: remove last URL (current) from history
+          this.history.pop();
         }
       });
   }
 
-  public isBackNavigation(): boolean {
-    return this.backNavSubject.getValue();
+  getPreviousUrl(): string | null {
+    return this.history.length > 0 ? this.history[this.history.length - 1] : null;
+  }
+
+  isBackNavigation(): boolean {
+    return this.isBack;
   }
 }
