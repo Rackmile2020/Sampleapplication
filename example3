@@ -1,9 +1,8 @@
- close() {
-    this.focusTrap.destroy();
-    this.focusRestorationEl?.focus();
-    this.dialogRef.nativeElement.remove();
-    document.querySelector('.modal-backdrop')?.remove();
-    document.querySelectorAll('[aria-hidden="true"]').forEach(el =>
-      el.removeAttribute('aria-hidden')
-    );
+const dialogEl = componentRef.location.nativeElement as HTMLElement;
+
+Array.from(document.body.children).forEach(child => {
+  // Hide all siblings EXCEPT the dialog and backdrop
+  if (child !== dialogEl && !child.classList.contains('modal-backdrop')) {
+    (child as HTMLElement).setAttribute('aria-hidden', 'true');
   }
+});
