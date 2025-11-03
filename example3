@@ -1,24 +1,20 @@
-{
-  path: 'child',
-  loadChildren: () => {
-    const spinner = document.createElement('div');
-    spinner.classList.add('global-spinner');
-    spinner.innerHTML = <div class="loader"></div>;
-    document.body.appendChild(spinner);
+import { Router, NavigationStart, NavigationEnd, Event, ActivatedRouteSnapshot } from '@angular/router';
 
-    return loadRemoteModule({
-      type: 'module',
-      remoteEntry: 'https://child-app-domain.com/remoteEntry.js',
-      exposedModule: './Module'
-    })
-      .then(m => {
-        document.body.removeChild(spinner);
-        return m.ChildModule;
-      })
-      .catch(err => {
-        document.body.removeChild(spinner);
-        console.error('Error loading remote MFE:', err);
-        throw err;
-      });
-  }
+this.router.events.subscribe((event: Event) => {
+  if (event instanceof NavigationStart) {
+    const currentRoute = this.getRouteData(this.router.routerState.snapshot.root);
+    if (currentRoute?.isMFE) {
+      this.loading = true;
+    }
+  } else if (event instanceof NavigationEnd || event instanceof NavigationCancel || event instanceof NavigationError) {
+    // optionally hide spinner later via child event
+  }
+});
+
+// helper to get deepest child route data
+getRouteData(route: ActivatedRouteSnapshot): any {
+  while (route.firstChild) {
+    route = route.firstChild;
+  }
+  return route.data;
 }
