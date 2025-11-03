@@ -1,35 +1,17 @@
-import { Injectable } from '@angular/core';
-import { Router, NavigationStart } from '@angular/router';
-import { Location } from '@angular/common';
+// src/app/utils/mfe-loader.ts
+import { inject } from '@angular/core';
+import { loadRemoteModule } from '@angular-architects/module-federation';
+import { LoadingService } from '../services/loading.service';
 
-@Injectable({ providedIn: 'root' })
-export class BackButtonHandlerService {
-
-  constructor(private router: Router, private location: Location) {
-    this.initBackHandler();
-  }
-
-  private initBackHandler() {
-    this.router.events.subscribe(event => {
-      if (event instanceof NavigationStart) {
-        // browser back detected if restoredState exists
-        if (event.restoredState) {
-          this.handleBack();
-        }
-      }
-    });
-  }
-
-  private handleBack() {
-    // check if there's no meaningful history for parent app
-    if (!this.hasParentHistory()) {
-      // navigate to parent home
-      window.location.href = '/home'; // parent app home URL
+export function loadRemoteWithSpinner<T>(options: any): () => Promise<T> {
+  const loader = inject(LoadingService);
+  return async () => {
+    loader.show(); // show spinner before remote starts loading
+    try {
+      const module = await loadRemoteModule(options);
+      return module;
+    } finally {
+      loader.hide(); // hide spinner when module is ready
     }
-  }
-
-  private hasParentHistory(): boolean {
-    // basic check: if history length <= 1, assume user landed via deep link
-    return window.history.length > 1;
-  }
+  };
 }
