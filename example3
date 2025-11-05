@@ -1,25 +1,24 @@
-{
-    path: 'MyCoverage',
-    canActivate: [/* your guards if needed */],
-    loadChildren: () => {
-      const loader = inject(LoadingService);
-      const injector = inject(Injector);
+import { loadRemoteModule } from '@angular-architects/module-federation';
+import { inject } from '@angular/core';
+import { LoadingService } from './loading.service';
+import { environment } from '../environments/environment';
 
-      loader.show(); // show spinner before load starts
+export function loadMyCoverageModule() {
+  const loader = inject(LoadingService);
+  loader.show();
 
-      return loadRemoteModule({
-        type: 'module',
-        remoteEntry: environment.mycoverage_remote_entry_url,
-        exposedModule: './Module',
-      })
-        .then(m => {
-          loader.hide();
-          return m.MyCoverageModule; // must match your actual module class name
-        })
-        .catch(err => {
-          loader.hide();
-          console.error('Error loading MyCoverage MFE:', err);
-          throw err;
-        });
-    },
-    data: { isMFE: true },
+  return loadRemoteModule({
+    type: 'module',
+    remoteEntry: environment.mycoverage_remote_entry_url,
+    exposedModule: './Module',
+  })
+    .then(m => {
+      loader.hide();
+      return m.MyCoverageModule;
+    })
+    .catch(err => {
+      loader.hide();
+      console.error('❌ Failed to load remote MFE', err);
+      throw err;
+    });
+}
