@@ -1,20 +1,26 @@
-import { Router, NavigationStart, NavigationEnd, Event, ActivatedRouteSnapshot } from '@angular/router';
+import { Injector } from '@angular/core';
+import { loadRemoteModule } from '@angular-architects/module-federation';
+import { LoadingService } from './loading.service';
 
-this.router.events.subscribe((event: Event) => {
-  if (event instanceof NavigationStart) {
-    const currentRoute = this.getRouteData(this.router.routerState.snapshot.root);
-    if (currentRoute?.isMFE) {
-      this.loading = true;
-    }
-  } else if (event instanceof NavigationEnd || event instanceof NavigationCancel || event instanceof NavigationError) {
-    // optionally hide spinner later via child event
-  }
-});
+export function loadMfeWithSpinner<T>(
+  injector: Injector,
+  options: { remoteEntry: string; exposedModule: string; moduleName: string }
+): Promise<T> {
+  const loader = injector.get(LoadingService);
+  loader.show();
 
-// helper to get deepest child route data
-getRouteData(route: ActivatedRouteSnapshot): any {
-  while (route.firstChild) {
-    route = route.firstChild;
-  }
-  return route.data;
+  return loadRemoteModule({
+    type: 'module',
+    remoteEntry: options.remoteEntry,
+    exposedModule: options.exposedModule,
+  })
+    .then(m => {
+      loader.hide();
+      return m[options.moduleName];
+    })
+    .catch(err => {
+      loader.hide();
+      console.error('Error loading remote module:', err);
+      throw err;
+    });
 }
