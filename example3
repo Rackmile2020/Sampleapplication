@@ -1,35 +1,25 @@
-export function loadMfeWithSpinner<T>(
-  injector: Injector,
-  options: { remoteEntry: string; exposedModule: string; moduleName: string }
-): Promise<T> {
-  const loader = injector.get(LoadingService);
-  loader.show();
-
-  return loadRemoteModule({
-    type: 'module',
-    remoteEntry: options.remoteEntry,
-    exposedModule: options.exposedModule,
-  })
-    .then(m => {
-      loader.hide();
-      return m[options.moduleName];
-    })
-    .catch(err => {
-      loader.hide();
-      console.error('Error loading remote module:', err);
-      throw err;
-    });
-}
-
- {
+{
     path: 'MyCoverage',
-    canMatch: [LobMatchGuard],
-    canActivate: [CanActivateService],
-    loadChildren: () =>
-      loadMfeWithSpinner(inject(Injector), {
+    canActivate: [/* your guards if needed */],
+    loadChildren: () => {
+      const loader = inject(LoadingService);
+      const injector = inject(Injector);
+
+      loader.show(); // show spinner before load starts
+
+      return loadRemoteModule({
+        type: 'module',
         remoteEntry: environment.mycoverage_remote_entry_url,
         exposedModule: './Module',
-        moduleName: 'MyCoverageModule',
-      }),
-    data: { isMFE: true },
-  },
+      })
+        .then(m => {
+          loader.hide();
+          return m.MyCoverageModule; // must match your actual module class name
+        })
+        .catch(err => {
+          loader.hide();
+          console.error('Error loading MyCoverage MFE:', err);
+          throw err;
+        });
+    },
+    data: { isMFE: true },
