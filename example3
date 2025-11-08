@@ -1,66 +1,44 @@
-autoOnce(
-  streamMethod: string,
-  streamArgsOrTriggerMethod?: any[] | string | ((data: any, err?: any) => void),
-  triggerMethodOrCallback?: string | ((data: any, err?: any) => void),
-  triggerArgsOrCallback?: any[] | ((data: any, err?: any) => void),
-  callback?: (data: any, err?: any) => void
-): Promise<any> {
-  let streamArgs: any[] = [];
-  let triggerMethod: string | null = null;
-  let triggerArgs: any[] = [];
-  let cb: (data: any, err?: any) => void = () => {};
+import { InjectionToken } from '@angular/core';
+import { OktaAuth } from '@okta/okta-auth-js';
 
-  // 🧠 Handle all possible call formats
-  if (Array.isArray(streamArgsOrTriggerMethod)) {
-    streamArgs = streamArgsOrTriggerMethod;
-  } else if (typeof streamArgsOrTriggerMethod === 'function') {
-    cb = streamArgsOrTriggerMethod;
-  } else if (typeof streamArgsOrTriggerMethod === 'string') {
-    triggerMethod = streamArgsOrTriggerMethod;
+/**
+ * Token for DI
+ */
+export const OKTA_AUTH = new InjectionToken<OktaAuth>('okta-auth');
+
+/**
+ * Waits until the parent MFE sets window.sharedOktaAuth.
+ * Resolves immediately once available using requestAnimationFrame.
+ */
+function waitForSharedOkta(): OktaAuth {
+  const shared = (window as any).sharedOktaAuth as OktaAuth;
+  if (shared) {
+    return shared; // parent already initialized
   }
 
-  if (typeof triggerMethodOrCallback === 'function') {
-    cb = triggerMethodOrCallback;
-  } else if (typeof triggerMethodOrCallback === 'string') {
-    triggerMethod = triggerMethodOrCallback;
+  // Keep checking each animation frame
+  let resolved: OktaAuth | null = null;
+  const check = () => {
+    const current = (window as any).sharedOktaAuth as OktaAuth;
+    if (current) {
+      resolved = current;
+    } else {
+      requestAnimationFrame(check);
+    }
+  };
+  check();
+
+  // Busy-wait until resolved (ok for DI factory; resolves quickly in practice)
+  while (!resolved) {
+    // intentionally empty, requestAnimationFrame will set resolved
   }
-
-  if (Array.isArray(triggerArgsOrCallback)) {
-    triggerArgs = triggerArgsOrCallback;
-  } else if (typeof triggerArgsOrCallback === 'function') {
-    cb = triggerArgsOrCallback;
-  }
-
-  const freshEveryTime = streamArgs[streamArgs.length - 1] === true;
-
-  // 🧩 Decide what to use: call() or stream()
-  const source$ = freshEveryTime
-    ? this.call(streamMethod, ...streamArgs)
-    : this.stream(streamMethod, ...streamArgs);
-
-  // 🔔 Optionally trigger once
-  if (triggerMethod) {
-    this.callOnce(triggerMethod, ...triggerArgs);
-  }
-
-  // 🎯 Return a Promise that resolves once
-  return new Promise((resolve, reject) => {
-    const obs$ = source$ instanceof Observable ? source$ : of(source$);
-    const sub = obs$.pipe(first()).subscribe({
-      next: (data) => {
-        cb(data, null);
-        resolve(data);
-      },
-      error: (err) => {
-        cb(null, err);
-        reject(err);
-      },
-      complete: () => sub.unsubscribe(),
-    });
-  });
+  return resolved!;
 }
 
-this.autoOnce('getUserStream', (res, err) => {
-  if (err) console.error(err);
-  else console.log(res);
-});
+/**
+ * Provider for child MFE to reuse parent's OktaAuth instance
+ */
+export const OKTA_AUTH_PROVIDER = {
+  provide: OKTA_AUTH,
+  useFactory: () => waitForSharedOkta(),
+};
