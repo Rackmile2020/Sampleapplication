@@ -1,44 +1,86 @@
-import { InjectionToken } from '@angular/core';
-import { OktaAuth } from '@okta/okta-auth-js';
+import { CanMatchFn, Route, Router, UrlSegment } from '@angular/router';
+import { inject } from '@angular/core';
+import { loadRemoteEntry } from '@angular-architects/module-federation';
 
-/**
- * Token for DI
- */
-export const OKTA_AUTH = new InjectionToken<OktaAuth>('okta-auth');
-
-/**
- * Waits until the parent MFE sets window.sharedOktaAuth.
- * Resolves immediately once available using requestAnimationFrame.
- */
-function waitForSharedOkta(): OktaAuth {
-  const shared = (window as any).sharedOktaAuth as OktaAuth;
-  if (shared) {
-    return shared; // parent already initialized
-  }
-
-  // Keep checking each animation frame
-  let resolved: OktaAuth | null = null;
-  const check = () => {
-    const current = (window as any).sharedOktaAuth as OktaAuth;
-    if (current) {
-      resolved = current;
-    } else {
-      requestAnimationFrame(check);
-    }
-  };
-  check();
-
-  // Busy-wait until resolved (ok for DI factory; resolves quickly in practice)
-  while (!resolved) {
-    // intentionally empty, requestAnimationFrame will set resolved
-  }
-  return resolved!;
+// ✅ Helper: check if remote entry script already exists
+function isRemoteLoaded(remoteUrl: string): boolean {
+  return Array.from(document.getElementsByTagName('script')).some(
+    (s) => s.src.includes(remoteUrl)
+  );
 }
 
-/**
- * Provider for child MFE to reuse parent's OktaAuth instance
- */
-export const OKTA_AUTH_PROVIDER = {
-  provide: OKTA_AUTH,
-  useFactory: () => waitForSharedOkta(),
+// ✅ Helper: safely load a remote entry if not already loaded
+async function ensureRemoteEntryLoaded(remoteUrl: string, remoteName: string) {
+  if (isRemoteLoaded(remoteUrl)) {
+    console.log(✅ Remote already loaded: ${remoteName});
+    return;
+  }
+
+  console.log(🔄 Loading remote entry: ${remoteName});
+  await loadRemoteEntry(remoteUrl, remoteName);
+}
+
+// ✅ Optional: Force reload (use only if needed)
+async function forceReloadRemoteEntry(remoteUrl: string, remoteName: string) {
+  const oldScript = Array.from(document.getElementsByTagName('script')).find(
+    (s) => s.src.includes(remoteUrl)
+  );
+  if (oldScript) {
+    console.log(♻ Removing old remote script for: ${remoteName});
+    oldScript.remove();
+  }
+  delete (window as any)[remoteName];
+  await loadRemoteEntry(remoteUrl, remoteName);
+}
+
+// ✅ Main guard function
+export const LobMatchGuard: CanMatchFn = async (route: Route, segments: UrlSegment[]) => {
+  console.log('Entered Guard:', segments);
+
+  const router = inject(Router);
+
+  // Base URL setup
+  let remoteUrl = '';
+  let remoteName = '';
+
+  // ✅ Detect environment (localhost or deployed)
+  if (typeof window !== 'undefined' && window.location.href.includes('localhost')) {
+    remoteUrl = 'http://localhost:4200/remoteEntry.js';
+    remoteName = 'mycoverage';
+  } else if (window.location.pathname.includes('mpinternal')) {
+    remoteUrl = '/mpinternal/app/map/remoteEntry.js';
+    remoteName = 'mapinternal';
+  } else {
+    remoteUrl = '/responsive/app/map/remoteEntry.js';
+    remoteName = 'map';
+  }
+
+  // ✅ Always ensure remote entry is loaded
+  await ensureRemoteEntryLoaded(remoteUrl, remoteName);
+
+  // Example routing conditions (same as in your screenshot)
+  if (segments?.length >= 2) {
+    const firstPath = segments[1]?.path || '';
+    const secondPath = segments[2]?.path || '';
+
+    // Example: handle special subroutes
+    if (firstPath === 'coordinationofbenefits' || secondPath === 'referrals') {
+      return true;
+    }
+
+    if (firstPath === 'myCoverage' && !secondPath) {
+      return true;
+    }
+
+    if (firstPath === 'overview' && secondPath === 'medical') {
+      return true;
+    }
+
+    if (secondPath === 'planDocuments') {
+      return true;
+    }
+  }
+
+  // Default route pass-through
+  return true;
 };
