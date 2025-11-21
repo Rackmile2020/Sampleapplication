@@ -1,90 +1,23 @@
-@Injectable({ providedIn: 'root' })
-export class MycoverageRealignDialogService {
-  private activeDialogs = new Map<
-    string,
-    { componentRef: ComponentRef<any>; subscription: Subscription; focusTrap?: FocusTrap }
-  >();
+function encodeBase64(data: any): string {
+  // If object → convert to JSON string
+  const str = typeof data === 'string' ? data : JSON.stringify(data);
 
-  constructor(
-    private injector: Injector,
-    private appRef: ApplicationRef,
-    private environmentInjector: EnvironmentInjector,
-    private focusTrapFactory: FocusTrapFactory
-  ) {}
+  const utf8Bytes = new TextEncoder().encode(str);
+  const binaryString = Array.from(utf8Bytes)
+    .map(b => String.fromCharCode(b))
+    .join('');
+  return btoa(binaryString);
+}
 
-  open<C = any, R = any, T extends DialogComponentBase<C, R> = DialogComponentBase<C, R>>(
-    component: Type<T>,
-    config: C,
-    dialogId?: string
-  ): DialogRef<C, R> {
-    const id = dialogId || Symbol().toString();
+function decodeBase64(b64: string): any {
+  const binary = atob(b64);
+  const bytes = Uint8Array.from(binary, c => c.charCodeAt(0));
+  const decoded = new TextDecoder().decode(bytes);
 
-    // Close if already open
-    if (this.activeDialogs.has(id)) {
-      this.close(id);
-    }
-
-    const componentRef = createComponent(component, {
-      environmentInjector: this.environmentInjector,
-      elementInjector: this.injector,
-    });
-    componentRef.instance.config = config;
-
-    const backdrop = document.createElement('div');
-    backdrop.className = 'modal-backdrop fade show';
-    document.body.appendChild(backdrop);
-    document.body.appendChild(componentRef.location.nativeElement);
-
-    this.appRef.attachView(componentRef.hostView);
-
-    // 🔹 Focus trap initialization
-    const focusTrap = this.focusTrapFactory.create(componentRef.location.nativeElement);
-    focusTrap.focusInitialElementWhenReady();
-
-    // Add accessibility attributes
-    const dialogEl = componentRef.location.nativeElement as HTMLElement;
-    dialogEl.setAttribute('role', 'dialog');
-    dialogEl.setAttribute('aria-modal', 'true');
-    dialogEl.tabIndex = -1;
-
-    // Focus the dialog
-    dialogEl.focus();
-
-    // Create dialogRef
-    const dialogRef = new DialogRef<C, R>(id, componentRef, this.appRef);
-    let subscription: Subscription | undefined;
-
-    if (componentRef.instance.closeEvent) {
-      subscription = componentRef.instance.closeEvent.subscribe((result?: R) => {
-        dialogRef.close(result);
-      });
-    }
-
-    this.activeDialogs.set(id, {
-      componentRef,
-      subscription: subscription || new Subscription(),
-      focusTrap,
-    });
-
-    // Disable background scroll
-    document.body.classList.add('modal-open');
-    document.body.style.overflow = 'hidden';
-    document.body.style.paddingRight = '0';
-
-    return dialogRef;
-  }
-
-  close(dialogId: string): void {
-    const dialog = this.activeDialogs.get(dialogId);
-    if (dialog) {
-      dialog.subscription.unsubscribe();
-      dialog.focusTrap?.destroy();
-      new DialogRef('temp', dialog.componentRef, this.appRef).close();
-      this.activeDialogs.delete(dialogId);
-    }
-  }
-
-  closeAll(): void {
-    Array.from(this.activeDialogs.keys()).forEach(id => this.close(id));
+  // Try JSON.parse
+  try {
+    return JSON.parse(decoded);
+  } catch {
+    return decoded;   // It’s just HTML or text
   }
 }
