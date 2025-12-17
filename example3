@@ -1,23 +1,43 @@
-function encodeBase64(data: any): string {
-  // If object → convert to JSON string
-  const str = typeof data === 'string' ? data : JSON.stringify(data);
+private List<Membership> getDisplayableMemberships(List<Membership> memberships) {
 
-  const utf8Bytes = new TextEncoder().encode(str);
-  const binaryString = Array.from(utf8Bytes)
-    .map(b => String.fromCharCode(b))
-    .join('');
-  return btoa(binaryString);
+if (CollectionUtils.isEmpty(memberships)) {
+return Collections.emptyList();
 }
 
-function decodeBase64(b64: string): any {
-  const binary = atob(b64);
-  const bytes = Uint8Array.from(binary, c => c.charCodeAt(0));
-  const decoded = new TextDecoder().decode(bytes);
+// 1️⃣ Filter hearing / withdrawn / future active memberships
+List<Membership> filteredMemberships = memberships.stream()
+.filter(Objects::nonNull)
+.filter(m ->
+(m.getIsCoverageWithdrawn() == null ||
+BooleanUtils.isFalse(m.getIsCoverageWithdrawn()))
+)
+.filter(m ->
+(m.getIsFutureActive() == null ||
+BooleanUtils.isFalse(m.getIsFutureActive()))
+)
+.toList(); // preserves original order
 
-  // Try JSON.parse
-  try {
-    return JSON.parse(decoded);
-  } catch {
-    return decoded;   // It’s just HTML or text
-  }
+if (CollectionUtils.isEmpty(filteredMemberships)) {
+return filteredMemberships;
+}
+
+// 2️⃣ Get Medical + Non-MA memberships
+List<Membership> nonMaMedicalMemberships =
+filteredMemberships.stream()
+.filter(m ->
+ObjectUtils.equals(m.getCoverageType(), CoverageType.MEDICAL) &&
+BooleanUtils.isFalse(m.getMAContractIndicator())
+)
+.toList();
+
+// 3️⃣ If NO non-MA medical memberships found → show only MA memberships
+if (CollectionUtils.isEmpty(nonMaMedicalMemberships)) {
+filteredMemberships =
+filteredMemberships.stream()
+.filter(m -> BooleanUtils.isTrue(m.getMAContractIndicator()))
+.toList();
+}
+
+return filteredMemberships;
+}
 }
