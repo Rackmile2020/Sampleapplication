@@ -1,43 +1,31 @@
-private List<Membership> getDisplayableMemberships(List<Membership> memberships) {
+export async function reloadRemoteEntry(
+  remoteUrl: string,
+  remoteName: string
+): Promise<void> {
 
-if (CollectionUtils.isEmpty(memberships)) {
-return Collections.emptyList();
-}
+  // 1️⃣ Remove existing container
+  if ((window as any)[remoteName]) {
+    delete (window as any)[remoteName];
+  }
 
-// 1️⃣ Filter hearing / withdrawn / future active memberships
-List<Membership> filteredMemberships = memberships.stream()
-.filter(Objects::nonNull)
-.filter(m ->
-(m.getIsCoverageWithdrawn() == null ||
-BooleanUtils.isFalse(m.getIsCoverageWithdrawn()))
-)
-.filter(m ->
-(m.getIsFutureActive() == null ||
-BooleanUtils.isFalse(m.getIsFutureActive()))
-)
-.toList(); // preserves original order
+  // 2️⃣ Remove old script tag
+  const oldScript = document.querySelector(
+    `script[src="${remoteUrl}"]`
+  ) as HTMLScriptElement;
 
-if (CollectionUtils.isEmpty(filteredMemberships)) {
-return filteredMemberships;
-}
+  if (oldScript) {
+    oldScript.remove();
+  }
 
-// 2️⃣ Get Medical + Non-MA memberships
-List<Membership> nonMaMedicalMemberships =
-filteredMemberships.stream()
-.filter(m ->
-ObjectUtils.equals(m.getCoverageType(), CoverageType.MEDICAL) &&
-BooleanUtils.isFalse(m.getMAContractIndicator())
-)
-.toList();
+  // 3️⃣ VERY IMPORTANT: reset webpack share scope
+  if ((window as any).__webpack_share_scopes__) {
+    delete (window as any).__webpack_share_scopes__.default;
+  }
 
-// 3️⃣ If NO non-MA medical memberships found → show only MA memberships
-if (CollectionUtils.isEmpty(nonMaMedicalMemberships)) {
-filteredMemberships =
-filteredMemberships.stream()
-.filter(m -> BooleanUtils.isTrue(m.getMAContractIndicator()))
-.toList();
-}
+  // 4️⃣ Re-init sharing
+  // @ts-ignore
+  await __webpack_init_sharing__('default');
 
-return filteredMemberships;
-}
+  // 5️⃣ Load remote again
+  await loadRemoteEntry(remoteUrl, remoteName);
 }
