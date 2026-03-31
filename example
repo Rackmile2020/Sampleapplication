@@ -1,0 +1,18 @@
+import { NativeDateAdapter } from '@angular/material/core';
+
+export class CustomDateAdapter extends NativeDateAdapter {
+
+  override format(date: Date, displayFormat: any): string {
+    if (!date) return '';
+
+    const day = this._to2Digit(date.getDate());
+    const month = this._to2Digit(date.getMonth() + 1);
+    const year = date.getFullYear();
+
+    return `${month}/${day}/${year}`; // ✅ always 03/20/2026
+  }
+
+  private _to2Digit(value: number): string {
+    return value < 10 ? '0' + value : value.toString();
+  }
+}
