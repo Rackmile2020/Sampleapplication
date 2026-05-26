@@ -83,3 +83,92 @@ Review my recent Angular code changes. Go file by file and check for:
 - Unmatched mocks for injected services
 
 Give feedback with file name and line number. Suggest the fix inline.
+
+
+//////////////////
+
+Review my recent Angular code changes. Go file by file and check for:
+
+**Angular Best Practices**
+- Unsubscribed Observables (missing takeUntil, DestroyRef, or async pipe)
+- Missing ngOnDestroy for cleanup
+- Direct DOM manipulation instead of Renderer2
+- Business logic inside components instead of services
+- Missing OnPush change detection on presentational components
+- *ngFor without trackBy
+- Avoid empty lifecycle hooks
+- No logic inside constructors, use ngOnInit instead
+
+**Null & Undefined Checks**
+- Missing null checks before accessing object properties
+- Missing optional chaining (?.) where object could be null
+- Missing nullish coalescing (??) for default values
+- Unhandled null returns from HTTP calls or service methods
+- Missing safe navigation operator (?.) in templates
+- Array not checked for empty before looping
+
+**RxJS**
+- Nested subscriptions that should use switchMap or mergeMap
+- Subjects not being completed on destroy
+- Manual subscriptions where async pipe would be cleaner
+- Missing catchError in HTTP observable chains
+- Missing finalize for loading state cleanup
+- No error handling in subscribe() error callback
+
+**Error Handling**
+- HTTP errors not caught with catchError
+- No global error handler (ErrorHandler) for unexpected errors
+- Missing try/catch in async functions
+- User not notified on API failure
+- Console.log left in production code (use proper logger)
+- No fallback UI for failed data loads
+
+**NgRx State Management**
+- Actions not following [Source] Event naming convention
+- Business logic inside components instead of Effects
+- Selectors not using createSelector for memoization
+- Direct store mutation instead of immutable state updates
+- Missing error actions for failed Effects
+- Dispatching multiple actions where one would do
+- Selectors not reused across components
+- Missing loading/error state in store for async operations
+
+**i18n / Translations**
+- Hardcoded English text in templates instead of translation keys
+- Missing i18n attribute on user-facing elements
+- Dynamic strings not using $localize or translate pipe
+- Date, currency, number not using Angular locale pipes
+- Missing translation keys for error messages
+- New UI text added without adding translation key
+
+**TypeScript**
+- Use of any type instead of proper interfaces/types
+- Missing null checks or optional chaining
+- Interfaces not defined for API response models
+- Enums used instead of const objects (worse tree shaking)
+- Missing return types on public methods
+
+**Security**
+- Unsafe innerHTML usage without DomSanitizer
+- Hardcoded API URLs (use environment files)
+- Sensitive data stored in localStorage
+- Missing auth guard on new routes
+- API tokens or secrets in code
+
+**Performance**
+- Large lists missing trackBy in *ngFor
+- Heavy logic running inside templates
+- Missing lazy loading on new feature modules/routes
+- Images missing width/height causing layout shift
+- Unnecessary API calls on every component load
+
+**Code Quality**
+- Magic numbers/strings not extracted as constants
+- Functions longer than 20 lines (split them)
+- Repeated code that should be a shared service or pipe
+- Component doing too many things (split it)
+- Dead code or unused imports left in
+
+Give feedback with file name and line number.
+Suggest the exact fix inline for every issue found.
+Flag CRITICAL issues separately at the top of your review.
