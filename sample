@@ -1,1 +1,85 @@
 
+## General
+- Review all changed files in this PR thoroughly
+- Reference file names and line numbers when flagging issues
+- Suggest fixes, not just problems
+
+## Angular-Specific Checks
+- Are components following Single Responsibility Principle?
+- Are inputs/outputs (@Input, @Output) used correctly?
+- Is ngOnDestroy implemented where subscriptions exist?
+- Are Observables being unsubscribed (use takeUntil, async pipe, or DestroyRef)?
+- Are services injected via inject() or constructor correctly?
+- Is change detection strategy (OnPush) used where appropriate?
+- Are lazy-loaded modules/routes set up correctly?
+- No direct DOM manipulation — use Renderer2 or Angular CDK instead
+- Are reactive forms or template forms used consistently?
+- Are environment variables used instead of hardcoded API URLs?
+
+## RxJS
+- Are there nested subscriptions that should use switchMap/mergeMap?
+- Are subjects (BehaviorSubject, Subject) being completed on destroy?
+- Is the async pipe preferred over manual subscriptions in templates?
+
+## Performance
+- Are large lists using trackBy in *ngFor?
+- Is OnPush change detection used for presentational components?
+- Are heavy operations moved out of templates?
+- Are images and modules lazy loaded?
+
+## Security
+- No use of innerHTML without DomSanitizer
+- No hardcoded API keys or secrets
+- Are HTTP calls going through interceptors for auth tokens?
+
+## Code Quality
+- Are components, services, pipes, and directives following Angular naming conventions?
+- Are shared components in a SharedModule or standalone?
+- Is business logic in services, not components?
+- Are TypeScript strict types used (avoid `any`)?
+
+## Testing
+- Are new components covered with unit tests using TestBed?
+- Are services mocked properly in tests?
+- Are async operations tested with fakeAsync or waitForAsync?
+
+## Documentation
+- Are complex components/services documented with JSDoc?
+- Is the README updated for any new setup steps?
+
+
+
+/////////////
+---
+mode: 'agent'
+---
+
+Review my recent Angular code changes. Go file by file and check for:
+
+**Angular Best Practices**
+- Unsubscribed Observables (missing takeUntil, DestroyRef, or async pipe)
+- Missing ngOnDestroy for cleanup
+- Direct DOM manipulation instead of Renderer2
+- Business logic inside components instead of services
+- Missing OnPush change detection on presentational components
+- *ngFor without trackBy
+
+**RxJS**
+- Nested subscriptions that should use switchMap or mergeMap
+- Subjects not being completed on destroy
+- Manual subscriptions where async pipe would be cleaner
+
+**TypeScript**
+- Use of `any` type instead of proper interfaces/types
+- Missing null checks or optional chaining
+
+**Security**
+- Unsafe innerHTML usage without DomSanitizer
+- Hardcoded API URLs or secrets (use environment files)
+- Missing auth interceptor on HTTP calls
+
+**Testing**
+- Missing TestBed unit tests for new components or services
+- Unmatched mocks for injected services
+
+Give feedback with file name and line number. Suggest the fix inline.
